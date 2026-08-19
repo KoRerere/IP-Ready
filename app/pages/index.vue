@@ -24,7 +24,16 @@ const revealTimers: ReturnType<typeof setTimeout>[] = []
 const infoTableWrap = ref<HTMLElement | null>(null)
 const infoTableScrollbar = ref<HTMLElement | null>(null)
 const infoTableScrollbarContent = ref<HTMLElement | null>(null)
+const infoTableDragging = ref(false)
 let infoTableScrollSyncing = false
+let infoTableDragPointerId: number | undefined
+let infoTableDragStartX = 0
+let infoTableDragStartScrollLeft = 0
+let infoTableTextPointerId: number | undefined
+let infoTableTextStartX = 0
+let infoTableTextStartY = 0
+let infoTableTextSelectionGesture = false
+let infoTableTextGestureResetTimer: ReturnType<typeof setTimeout> | undefined
 
 const featureDuration = 5000
 
@@ -214,6 +223,7 @@ onBeforeUnmount(() => {
   platformScoreObserver?.disconnect()
   if (platformScoreFrame !== undefined) cancelAnimationFrame(platformScoreFrame)
   if (toastTimer) clearTimeout(toastTimer)
+  if (infoTableTextGestureResetTimer) clearTimeout(infoTableTextGestureResetTimer)
   if (featureTimer) clearInterval(featureTimer)
   revealTimers.forEach(clearTimeout)
 })
@@ -226,6 +236,17 @@ async function copyValue(value: string, message = 'Copied to clipboard') {
   toastTimer = setTimeout(() => {
     copied.value = false
   }, 1600)
+}
+
+function copyTableValue(value: string) {
+  if (infoTableTextSelectionGesture) {
+    infoTableTextSelectionGesture = false
+    return
+  }
+
+  const selection = window.getSelection()
+  if (selection && !selection.isCollapsed && selection.toString().trim()) return
+  return copyValue(value)
 }
 
 function copyIp() {
@@ -263,6 +284,65 @@ function handleInfoTableScrollbarScroll() {
   if (infoTableScrollbar.value && infoTableWrap.value) {
     syncInfoTableScroll(infoTableScrollbar.value, infoTableWrap.value)
   }
+}
+
+function handleInfoTablePointerDown(event: PointerEvent) {
+  if (event.button !== 0 || event.ctrlKey) return
+
+  const target = event.target instanceof Element ? event.target : null
+  if (target?.closest('.copyable-value, .info-table-heading-text')) {
+    infoTableTextPointerId = event.pointerId
+    infoTableTextStartX = event.clientX
+    infoTableTextStartY = event.clientY
+    infoTableTextSelectionGesture = false
+    return
+  }
+
+  const wrap = infoTableWrap.value
+  if (!wrap || wrap.scrollWidth <= wrap.clientWidth) return
+
+  infoTableDragPointerId = event.pointerId
+  infoTableDragStartX = event.clientX
+  infoTableDragStartScrollLeft = wrap.scrollLeft
+  wrap.setPointerCapture(event.pointerId)
+  event.preventDefault()
+}
+
+function handleInfoTablePointerMove(event: PointerEvent) {
+  if (event.pointerId === infoTableTextPointerId) {
+    const distance = Math.hypot(event.clientX - infoTableTextStartX, event.clientY - infoTableTextStartY)
+    if (distance >= 4) infoTableTextSelectionGesture = true
+    return
+  }
+
+  const wrap = infoTableWrap.value
+  if (!wrap || event.pointerId !== infoTableDragPointerId) return
+
+  const deltaX = event.clientX - infoTableDragStartX
+  if (!infoTableDragging.value && Math.abs(deltaX) < 4) return
+
+  infoTableDragging.value = true
+  wrap.scrollLeft = infoTableDragStartScrollLeft - deltaX
+  event.preventDefault()
+}
+
+function stopInfoTableDrag(event: PointerEvent) {
+  if (event.pointerId === infoTableTextPointerId) {
+    infoTableTextPointerId = undefined
+    if (infoTableTextGestureResetTimer) clearTimeout(infoTableTextGestureResetTimer)
+    if (event.type === 'pointercancel') infoTableTextSelectionGesture = false
+    else infoTableTextGestureResetTimer = setTimeout(() => {
+      infoTableTextSelectionGesture = false
+    }, 0)
+    return
+  }
+
+  const wrap = infoTableWrap.value
+  if (!wrap || event.pointerId !== infoTableDragPointerId) return
+
+  if (wrap.hasPointerCapture(event.pointerId)) wrap.releasePointerCapture(event.pointerId)
+  infoTableDragPointerId = undefined
+  infoTableDragging.value = false
 }
 </script>
 
@@ -432,18 +512,29 @@ function handleInfoTableScrollbarScroll() {
         </div>
 
         <div class="info-table-shell">
-          <div ref="infoTableWrap" class="info-table-wrap" tabindex="0" aria-label="Network and device details" @scroll="handleInfoTableScroll">
+          <div
+            ref="infoTableWrap"
+            class="info-table-wrap"
+            :class="{ 'is-dragging': infoTableDragging }"
+            tabindex="0"
+            aria-label="Network and device details"
+            @scroll="handleInfoTableScroll"
+            @pointerdown="handleInfoTablePointerDown"
+            @pointermove="handleInfoTablePointerMove"
+            @pointerup="stopInfoTableDrag"
+            @pointercancel="stopInfoTableDrag"
+          >
             <table class="info-table">
-              <thead><tr><th>IP Type</th><th>Host</th><th>System</th><th>Browser Version</th><th>Browser Fingerprint</th><th>ISP</th><th>DNS</th><th>ASN</th></tr></thead>
+              <thead><tr><th><span class="info-table-heading-text">IP Type</span></th><th><span class="info-table-heading-text">Host</span></th><th><span class="info-table-heading-text">System</span></th><th><span class="info-table-heading-text">Browser Version</span></th><th><span class="info-table-heading-text">Browser Fingerprint</span></th><th><span class="info-table-heading-text">ISP</span></th><th><span class="info-table-heading-text">DNS</span></th><th><span class="info-table-heading-text">ASN</span></th></tr></thead>
               <tbody><tr>
-                <td><button class="copyable-value" type="button" data-tooltip="点击复制" aria-label="复制 Residential ISP" @click="copyValue('Residential ISP')"><span class="copyable-text">Residential ISP</span></button></td>
-                <td><button class="copyable-value" type="button" data-tooltip="点击复制" aria-label="复制完整 Host" @click="copyValue('ec2-13-250-177-223.ap-southeast-1.compute.amazonaws.com')"><span class="copyable-text">ec2-13-250-177-223.ap-southeast-1.compute.amazonaws.com</span></button></td>
-                <td><button class="copyable-value" type="button" data-tooltip="点击复制" aria-label="复制 macOS 15.6" @click="copyValue('macOS 15.6')"><span class="table-with-icon"><CurrentIcon class="macos-icon" src="/assets/figma/imgMacOs.svg" /><span class="copyable-text">macOS 15.6</span></span></button></td>
-                <td><button class="copyable-value" type="button" data-tooltip="点击复制" aria-label="复制 Chrome 151.0.0.0" @click="copyValue('Chrome 151.0.0.0')"><span class="table-with-icon"><span class="chrome-icon" aria-hidden="true"><img src="/assets/figma/imgVector35.svg" alt="" /><img src="/assets/figma/imgVector36.svg" alt="" /><img src="/assets/figma/imgVector37.svg" alt="" /><img src="/assets/figma/imgVector38.svg" alt="" /><img src="/assets/figma/imgVector39.svg" alt="" /></span><span class="copyable-text">Chrome 151.0.0.0</span></span></button></td>
-                <td><button class="copyable-value" type="button" data-tooltip="点击复制" aria-label="复制 Browser Fingerprint" @click="copyValue('6qXXYHA3gKwdcmm/zsKv2Q==')"><span class="copyable-text">6qXXYHA3gKwdcmm/zsKv2Q==</span></button></td>
-                <td><button class="copyable-value" type="button" data-tooltip="点击复制" aria-label="复制完整 ISP" @click="copyValue('Amazon Data Services Singapore')"><span class="copyable-text">Amazon Data Services Singapore</span></button></td>
-                <td><button class="copyable-value" type="button" data-tooltip="点击复制" aria-label="复制完整 DNS" @click="copyValue('1.1.1.1 · Cloudflare · Singapore')"><span class="copyable-text">1.1.1.1 · Cloudflare · Singapore</span></button></td>
-                <td><button class="copyable-value" type="button" data-tooltip="点击复制" aria-label="复制完整 ASN" @click="copyValue('AS16509 · Amazon.com, Inc.')"><span class="copyable-text">AS16509 · Amazon.com, Inc.</span></button></td>
+                <td><span class="copyable-value" role="button" tabindex="0" data-tooltip="点击复制" aria-label="复制 Residential ISP" @click="copyTableValue('Residential ISP')" @keydown.enter="copyTableValue('Residential ISP')" @keydown.space.prevent="copyTableValue('Residential ISP')"><span class="copyable-text">Residential ISP</span></span></td>
+                <td><span class="copyable-value" role="button" tabindex="0" data-tooltip="点击复制" aria-label="复制完整 Host" @click="copyTableValue('ec2-13-250-177-223.ap-southeast-1.compute.amazonaws.com')" @keydown.enter="copyTableValue('ec2-13-250-177-223.ap-southeast-1.compute.amazonaws.com')" @keydown.space.prevent="copyTableValue('ec2-13-250-177-223.ap-southeast-1.compute.amazonaws.com')"><span class="copyable-text">ec2-13-250-177-223.ap-southeast-1.compute.amazonaws.com</span></span></td>
+                <td><span class="copyable-value" role="button" tabindex="0" data-tooltip="点击复制" aria-label="复制 macOS 15.6" @click="copyTableValue('macOS 15.6')" @keydown.enter="copyTableValue('macOS 15.6')" @keydown.space.prevent="copyTableValue('macOS 15.6')"><span class="table-with-icon"><CurrentIcon class="macos-icon" src="/assets/figma/imgMacOs.svg" /><span class="copyable-text">macOS 15.6</span></span></span></td>
+                <td><span class="copyable-value" role="button" tabindex="0" data-tooltip="点击复制" aria-label="复制 Chrome 151.0.0.0" @click="copyTableValue('Chrome 151.0.0.0')" @keydown.enter="copyTableValue('Chrome 151.0.0.0')" @keydown.space.prevent="copyTableValue('Chrome 151.0.0.0')"><span class="table-with-icon"><span class="chrome-icon" aria-hidden="true"><img src="/assets/figma/imgVector35.svg" alt="" /><img src="/assets/figma/imgVector36.svg" alt="" /><img src="/assets/figma/imgVector37.svg" alt="" /><img src="/assets/figma/imgVector38.svg" alt="" /><img src="/assets/figma/imgVector39.svg" alt="" /></span><span class="copyable-text">Chrome 151.0.0.0</span></span></span></td>
+                <td><span class="copyable-value" role="button" tabindex="0" data-tooltip="点击复制" aria-label="复制 Browser Fingerprint" @click="copyTableValue('6qXXYHA3gKwdcmm/zsKv2Q==')" @keydown.enter="copyTableValue('6qXXYHA3gKwdcmm/zsKv2Q==')" @keydown.space.prevent="copyTableValue('6qXXYHA3gKwdcmm/zsKv2Q==')"><span class="copyable-text">6qXXYHA3gKwdcmm/zsKv2Q==</span></span></td>
+                <td><span class="copyable-value" role="button" tabindex="0" data-tooltip="点击复制" aria-label="复制完整 ISP" @click="copyTableValue('Amazon Data Services Singapore')" @keydown.enter="copyTableValue('Amazon Data Services Singapore')" @keydown.space.prevent="copyTableValue('Amazon Data Services Singapore')"><span class="copyable-text">Amazon Data Services Singapore</span></span></td>
+                <td><span class="copyable-value" role="button" tabindex="0" data-tooltip="点击复制" aria-label="复制完整 DNS" @click="copyTableValue('1.1.1.1 · Cloudflare · Singapore')" @keydown.enter="copyTableValue('1.1.1.1 · Cloudflare · Singapore')" @keydown.space.prevent="copyTableValue('1.1.1.1 · Cloudflare · Singapore')"><span class="copyable-text">1.1.1.1 · Cloudflare · Singapore</span></span></td>
+                <td><span class="copyable-value" role="button" tabindex="0" data-tooltip="点击复制" aria-label="复制完整 ASN" @click="copyTableValue('AS16509 · Amazon.com, Inc.')" @keydown.enter="copyTableValue('AS16509 · Amazon.com, Inc.')" @keydown.space.prevent="copyTableValue('AS16509 · Amazon.com, Inc.')"><span class="copyable-text">AS16509 · Amazon.com, Inc.</span></span></td>
               </tr></tbody>
             </table>
           </div>

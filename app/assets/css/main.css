@@ -112,7 +112,7 @@ main { min-height: 0; }
   0%, 100% { background-position: 100% 50%; }
   50% { background-position: 0% 50%; }
 }
-.hero-copy h1 { display: flex; flex-direction: column; gap: 6px; align-items: center; margin: 16px 0 0; color: #0a0a0a; font-size: 44px; font-weight: 600; line-height: 1.2; text-align: center; }
+.hero-copy h1 { display: flex; flex-direction: column; gap: 6px; align-items: center; margin: 16px 0 0; color: #0a0a0a; font-family: Geist, Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; font-size: 44px; font-weight: 600; line-height: 1.2; text-align: center; }
 .hero-copy h1 span { font-size: 58px; }
 .hero-subtitle { margin: 12px 0 0; color: var(--ink-soft); font-size: 13px; line-height: 1.5; text-align: center; }
 .hero-points { display: flex; gap: 12px; margin-top: 28px; }
@@ -203,7 +203,7 @@ main { min-height: 0; }
 .readiness-inner { width: min(1280px, calc(100% - 168px)); margin: 0 auto; }
 .section-head { display: flex; flex-direction: column; align-items: flex-start; }
 .section-index { display: flex; gap: 16px; align-items: center; margin: 0 0 40px; color: var(--muted); font-size: 12px; font-weight: 500; line-height: 16px; }
-.section-head h2 { margin: 0; color: var(--ink); font-size: 44px; font-weight: 600; line-height: 1.2; }
+.section-head h2 { margin: 0; color: var(--ink); font-family: Geist, Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; font-size: 44px; font-weight: 600; line-height: 1.2; }
 .section-head > p:not(.section-index) { margin: 4px 0 0; color: var(--muted); font-size: 16px; line-height: 28px; }
 .tabs { display: flex; height: 50px; gap: 4px; align-items: center; margin-top: 32px; padding: 6px; border-radius: 12px; background: #fff; }
 .tabs button { min-width: 60px; height: 38px; padding: 0 24px; border: 0; border-radius: 8px; background: transparent; font-size: 14px; font-weight: 600; cursor: pointer; transition: background .2s ease, color .2s ease; }
@@ -283,7 +283,9 @@ main { min-height: 0; }
 .information { width: 1280px; height: 557px; margin: 0 auto; padding: 60px 0; }
 .information .section-index { margin-bottom: 40px; }
 .info-table-shell { width: 100%; margin-top: 48px; }
-.info-table-wrap { width: 100%; overflow-x: auto; overflow-y: hidden; border: 1px solid var(--line); border-radius: 8px; scrollbar-width: none; }
+.info-table-wrap { width: 100%; overflow-x: auto; overflow-y: hidden; border: 1px solid var(--line); border-radius: 8px; cursor: grab; scrollbar-width: none; touch-action: pan-y; }
+.info-table-wrap.is-dragging { cursor: grabbing; }
+.info-table-wrap.is-dragging * { cursor: grabbing !important; -webkit-user-select: none !important; user-select: none !important; }
 .info-table-wrap::-webkit-scrollbar { width: 0; height: 0; }
 .info-table-scrollbar { width: 100%; height: 10px; margin-top: 8px; overflow-x: auto; overflow-y: hidden; scrollbar-color: #d9dddf transparent; scrollbar-width: thin; }
 .info-table-scrollbar::-webkit-scrollbar { height: 6px; }
@@ -296,10 +298,11 @@ main { min-height: 0; }
 .info-table { width: 100%; min-width: 1640px; table-layout: fixed; border-collapse: collapse; font-size: 14px; }
 .info-table th { height: 42px; padding: 11px 16px; border-bottom: 1px solid var(--line); background: #f6f6f8; color: var(--muted); text-align: left; font-weight: 500; }
 .info-table td { height: 60px; padding: 20px 16px; overflow: visible; color: var(--ink); font-weight: 500; white-space: nowrap; }
+.info-table-heading-text { cursor: text; -webkit-user-select: text; user-select: text; }
 .info-table th:nth-child(1),.info-table td:nth-child(1){width:140px}.info-table th:nth-child(2),.info-table td:nth-child(2){width:220px}.info-table th:nth-child(3),.info-table td:nth-child(3){width:180px}.info-table th:nth-child(4),.info-table td:nth-child(4){width:180px}.info-table th:nth-child(5),.info-table td:nth-child(5){width:260px}.info-table th:nth-child(6),.info-table td:nth-child(6){width:170px}.info-table th:nth-child(7),.info-table td:nth-child(7){width:160px}.info-table th:nth-child(8),.info-table td:nth-child(8){width:140px}
 .table-with-icon { display: flex; min-width: 0; width: fit-content; max-width: 100%; align-items: center; gap: 8px; }
-.copyable-value { position: relative; display: flex; min-width: 0; width: fit-content; max-width: 100%; align-items: center; padding: 0; border: 0; outline: 0; background: transparent; color: inherit; font: inherit; font-weight: inherit; text-align: left; cursor: pointer; }
-.copyable-text { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.copyable-value { position: relative; display: flex; min-width: 0; width: fit-content; max-width: 100%; align-items: center; padding: 0; border: 0; outline: 0; background: transparent; color: inherit; font: inherit; font-weight: inherit; text-align: left; cursor: text; -webkit-user-select: text; user-select: text; }
+.copyable-text { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; -webkit-user-select: text; user-select: text; }
 .copyable-value::before,
 .copyable-value::after { position: absolute; left: 50%; opacity: 0; pointer-events: none; transition: opacity .16s ease, transform .2s cubic-bezier(.21,.47,.32,.98); }
 .copyable-value::before { z-index: 20; bottom: calc(100% + 3px); width: 10px; height: 10px; border-radius: 2px; background: rgba(0,0,0,.6); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); content: ""; transform: translate(-50%, 6px) rotate(45deg); }
@@ -368,7 +371,7 @@ main { min-height: 0; }
 .faq-motion video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .faq-motion-wash { position: absolute; inset: 0; background: linear-gradient(180deg,rgba(255,255,255,.42) 0%,rgba(255,255,255,.18) 42%,rgba(255,255,255,0) 68%); }
 .faq-card { position: relative; z-index: 1; width: min(780px, calc(100% - 48px)); height: auto; margin: 0 auto; padding: 86px 0 70px; background: transparent; }
-.faq-card h2 { margin: 0; font-size: 44px; font-weight: 600; line-height: 1.08; }
+.faq-card h2 { margin: 0; font-family: Geist, Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; font-size: 44px; font-weight: 600; line-height: 1.08; }
 .faq-list { margin-top: 35px; border-top: 1px solid rgba(57,72,62,.12); }
 .faq-item { border-bottom: 1px solid rgba(57,72,62,.12); }
 .faq-item button { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 20px; padding: 20px 0; border: 0; background: transparent; color: #273229; text-align: left; cursor: pointer; }

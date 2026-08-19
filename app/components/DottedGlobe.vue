@@ -37,8 +37,8 @@ onMounted(async () => {
   camera.position.z = 2.35
 
   const globe = new THREE.Group()
-  globe.position.y = -0.58
-  globe.scale.setScalar(1.12)
+  globe.position.set(0.08, 0, 0)
+  globe.scale.setScalar(0.48)
   globe.rotation.set(-0.05, -1.83, 0.02)
   scene.add(globe)
 
@@ -92,7 +92,7 @@ onMounted(async () => {
       transparent: true,
       depthTest: true,
       depthWrite: false,
-      uniforms: { uPointSize: { value: 0.014 } },
+      uniforms: { uPointSize: { value: 0.018 } },
       vertexShader: `
         uniform float uPointSize;
         varying float vFacing;
@@ -113,7 +113,7 @@ onMounted(async () => {
           if (distanceFromCenter > 0.5) discard;
           float circleEdge = 1.0 - smoothstep(0.36, 0.5, distanceFromCenter);
           float facingOpacity = mix(0.04, 0.92, smoothstep(0.02, 0.84, vFacing));
-          gl_FragColor = vec4(vec3(0.153, 0.651, 0.29), circleEdge * facingOpacity);
+          gl_FragColor = vec4(vec3(0.075, 0.46, 0.19), circleEdge * facingOpacity);
         }
       `,
     })

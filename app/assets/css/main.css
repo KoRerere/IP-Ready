@@ -135,7 +135,7 @@ main { min-height: 0; }
   box-shadow: 0 20px 55px rgba(31,76,47,.08);
 }
 .report-main { position: relative; overflow: hidden; background: #fff; }
-.report-map { position: absolute; top: 13px; left: 335px; width: 462px; height: 204px; overflow: hidden; opacity: .4; }
+.report-map { position: absolute; top: 13px; left: 335px; width: 462px; height: 204px; overflow: hidden; opacity: .8; }
 .dotted-globe { position: relative; width: 100%; height: 100%; }
 .dotted-globe canvas { display: block; width: 100%; height: 100%; }
 .dotted-globe-fallback { background: url('/assets/figma/imgCleanShot20240707At2241422X1.png') center top / 100% auto no-repeat; }
@@ -474,7 +474,7 @@ main { min-height: 0; }
   .hero-copy h1 span { font-size: 40px; }
   .hero-points { flex-wrap: wrap; justify-content: center; }
   .ip-report { top: 32px; }
-  .report-map { left: 34%; opacity: .2; }
+  .report-map { left: 0; width: 100%; opacity: .62; }
   .ip-line strong { font-size: 25px; line-height: 1.4; }
   .ip-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
   .ip-facts > div + div { padding-left: 0; }

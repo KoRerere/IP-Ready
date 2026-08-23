@@ -2,6 +2,12 @@ export default defineNuxtConfig({
   compatibilityDate: '2026-08-01',
   devtools: { enabled: false },
   css: ['~/assets/css/main.css'],
+  runtimeConfig: {
+    deepseekApiKey: '',
+    deepseekBaseUrl: 'https://api.deepseek.com',
+    ipqsApiKey: '',
+    iplocateApiKey: '',
+  },
   app: {
     head: {
       htmlAttrs: { lang: 'en' },

@@ -1,10 +1,45 @@
 <script setup lang="ts">
+
 type PlatformFilter = 'all' | 'ai' | 'ecommerce' | 'advertising' | 'social'
 
 interface PlatformCard {
   name: string
   score: number
   icon: string
+}
+
+interface IpScanResult {
+  ip: string
+  proxy?: boolean
+  ISP?: string
+  organization?: string
+  ASN?: number
+  host?: string
+  country_code?: string
+  city?: string
+  region?: string
+  connection_type?: string
+  latitude?: number
+  longitude?: number
+  zip_code?: string
+  timezone?: string
+  vpn?: boolean
+  tor?: boolean
+  active_vpn?: boolean
+  active_tor?: boolean
+  recent_abuse?: boolean
+  frequent_abuser?: boolean
+  high_risk_attacks?: boolean
+  abuse_velocity?: string
+  bot_status?: boolean
+  mobile?: boolean
+  risk_score?: number
+  operating_system?: string
+  browser?: string
+  device_model?: string
+  device_brand?: string
+  analysis: { title: string; summary: string; concern: string }
+  scanned_at: string
 }
 
 const activeFilter = ref<PlatformFilter>('all')
@@ -14,6 +49,11 @@ const copied = ref(false)
 const copyToastMessage = ref('Copied to clipboard')
 const platformHasSwapped = ref(false)
 const animatedPlatformScores = ref<number[]>([])
+const scan = ref<IpScanResult | null>(null)
+const scanError = ref('')
+const scanPending = ref(true)
+const userAgent = ref('Detecting browser…')
+const currentTime = ref(new Date())
 
 let revealObserver: IntersectionObserver | undefined
 let platformScoreObserver: IntersectionObserver | undefined
@@ -37,45 +77,90 @@ let infoTableTextGestureResetTimer: ReturnType<typeof setTimeout> | undefined
 
 const featureDuration = 5000
 
-const claudePlatform: PlatformCard = { name: 'Claude', score: 88, icon: '/assets/platform/claude.svg' }
-const chatGptPlatform: PlatformCard = { name: 'ChatGPT', score: 88, icon: '/assets/platform/chatgpt.svg' }
-const amazonPlatform: PlatformCard = { name: 'Amazon', score: 95, icon: '/assets/platform/amazon.svg' }
-const ebayPlatform: PlatformCard = { name: 'Ebay', score: 98, icon: '/assets/platform/ebay.svg' }
-const binancePlatform: PlatformCard = { name: 'Binance', score: 76, icon: '/assets/platform/binance.svg' }
+const platformIcon = (filename: string) => `/assets/icons/platform/${filename}`
+const claudePlatform: PlatformCard = { name: 'Claude', score: 88, icon: platformIcon('IP_ic_claude.svg') }
+const chatGptPlatform: PlatformCard = { name: 'ChatGPT', score: 88, icon: platformIcon('IP_ic_chatgpt.svg') }
+const amazonPlatform: PlatformCard = { name: 'Amazon', score: 95, icon: platformIcon('IP_ic_Amazon.svg') }
+const ebayPlatform: PlatformCard = { name: 'Ebay', score: 98, icon: platformIcon('IP_ic_eBay.svg') }
+const binancePlatform: PlatformCard = { name: 'Binance', score: 76, icon: platformIcon('IP_ic_binance.svg') }
 
 const platformGroups: Record<PlatformFilter, PlatformCard[]> = {
   all: [claudePlatform, chatGptPlatform, amazonPlatform, ebayPlatform, binancePlatform],
   ai: [
     claudePlatform,
     chatGptPlatform,
-    { name: 'Gemini', score: 91, icon: '/assets/platform/gemini.svg' },
-    { name: 'Perplexity', score: 84, icon: '/assets/platform/perplexity.svg' },
-    { name: 'Grok', score: 82, icon: '/assets/platform/grok.svg' },
+    { name: 'Gemini', score: 91, icon: platformIcon('IP_ic_gemini.svg') },
+    { name: 'Perplexity', score: 84, icon: platformIcon('IP_ic_perplexity.svg') },
+    { name: 'Grok', score: 82, icon: platformIcon('IP_ic_grok.svg') },
   ],
   ecommerce: [
     amazonPlatform,
     ebayPlatform,
-    { name: 'Shopify', score: 92, icon: '/assets/platform/shopify.svg' },
-    { name: 'Etsy', score: 89, icon: '/assets/platform/etsy.svg' },
-    { name: 'AliExpress', score: 85, icon: '/assets/platform/aliexpress.svg' },
+    { name: 'Shopify', score: 92, icon: platformIcon('IP_ic_Shopify.svg') },
+    { name: 'Etsy', score: 89, icon: platformIcon('IP_ic_Etsy.svg') },
+    { name: 'AliExpress', score: 85, icon: platformIcon('IP_ic_AliExpress.svg') },
   ],
   advertising: [
-    { name: 'Facebook Ads', score: 90, icon: '/assets/platform/facebook.svg' },
-    { name: 'Instagram Ads', score: 88, icon: '/assets/platform/instagram.svg' },
-    { name: 'TikTok Ads', score: 87, icon: '/assets/platform/tiktok.svg' },
-    { name: 'YouTube Ads', score: 92, icon: '/assets/platform/youtube.svg' },
-    { name: 'LinkedIn Ads', score: 84, icon: '/assets/platform/linkedin.svg' },
+    { name: 'Facebook Ads', score: 90, icon: platformIcon('IP_ic_Facebook.svg') },
+    { name: 'Instagram Ads', score: 88, icon: platformIcon('IP_ic_instagram.svg') },
+    { name: 'TikTok Ads', score: 87, icon: platformIcon('IP_ic_tiktok.svg') },
+    { name: 'YouTube Ads', score: 92, icon: platformIcon('IP_ic_youtube.svg') },
+    { name: 'LinkedIn Ads', score: 84, icon: platformIcon('IP_ic_linkedin.svg') },
   ],
   social: [
-    { name: 'Facebook', score: 91, icon: '/assets/platform/facebook.svg' },
-    { name: 'Instagram', score: 90, icon: '/assets/platform/instagram.svg' },
-    { name: 'TikTok', score: 89, icon: '/assets/platform/tiktok.svg' },
-    { name: 'Reddit', score: 86, icon: '/assets/platform/reddit.svg' },
-    { name: 'Discord', score: 85, icon: '/assets/platform/discord.svg' },
+    { name: 'Facebook', score: 91, icon: platformIcon('IP_ic_Facebook.svg') },
+    { name: 'Instagram', score: 90, icon: platformIcon('IP_ic_instagram.svg') },
+    { name: 'TikTok', score: 89, icon: platformIcon('IP_ic_tiktok.svg') },
+    { name: 'Reddit', score: 86, icon: platformIcon('IP_ic_reddit.svg') },
+    { name: 'Discord', score: 85, icon: platformIcon('IP_ic_discord.svg') },
   ],
 }
 
-const displayedPlatforms = computed(() => platformGroups[activeFilter.value])
+const riskScore = computed(() => scan.value?.risk_score ?? 0)
+const healthScore = computed(() => scan.value ? Math.max(0, 100 - riskScore.value) : 0)
+const riskLevel = computed(() => riskScore.value > 70 ? 'high' : riskScore.value >= 40 ? 'medium' : 'low')
+const riskLabel = computed(() => riskLevel.value === 'high' ? 'High Risk' : riskLevel.value === 'medium' ? 'Medium Risk' : 'Low Risk')
+const countryName = computed(() => {
+  const code = scan.value?.country_code
+  if (!code) return 'Detecting location…'
+  return new Intl.DisplayNames(['en'], { type: 'region' }).of(code) || code
+})
+const countryFlag = computed(() => {
+  const code = scan.value?.country_code?.toUpperCase()
+  return code?.length === 2 ? `/assets/icons/flags/${code}.svg` : ''
+})
+const coordinates = computed(() => {
+  if (scan.value?.latitude == null || scan.value?.longitude == null) return 'N/A'
+  return `${scan.value.latitude}, ${scan.value.longitude}`
+})
+const displayedPlatforms = computed(() => {
+  const adjustment = scan.value ? healthScore.value - 86 : 0
+  return platformGroups[activeFilter.value].map((platform) => ({
+    ...platform,
+    score: Math.min(99, Math.max(1, platform.score + adjustment)),
+  }))
+})
+const localTime = computed(() => {
+  if (!scan.value?.timezone) return 'N/A'
+  try {
+    return currentTime.value.toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'long', timeZone: scan.value.timezone })
+  } catch {
+    return 'N/A'
+  }
+})
+
+async function loadIpScan() {
+  scanPending.value = true
+  scanError.value = ''
+  try {
+    scan.value = await $fetch<IpScanResult>('/api/ip-check')
+  } catch (error) {
+    const apiError = error as { data?: { statusMessage?: string }; message?: string }
+    scanError.value = apiError.data?.statusMessage || apiError.message || 'IP scan failed.'
+  } finally {
+    scanPending.value = false
+  }
+}
 
 // Keep the visible score synchronized with the progress-bar loading motion.
 function animatePlatformScores() {
@@ -158,6 +243,10 @@ useHead({
 })
 
 onMounted(() => {
+  userAgent.value = navigator.userAgent
+  void loadIpScan()
+  const clockTimer = window.setInterval(() => { currentTime.value = new Date() }, 1000)
+  onBeforeUnmount(() => window.clearInterval(clockTimer))
   window.addEventListener('wheel', preventBottomOverscroll, { passive: false })
 
   revealObserver = new IntersectionObserver(
@@ -171,27 +260,32 @@ onMounted(() => {
         }
       }
     },
-    { threshold: 0.13 },
+    { threshold: 0.13, rootMargin: '0px 0px -48px 0px' },
   )
 
   const revealGroups = [
+    ['.hero-copy .gradient-label', '.hero-copy h1', '.hero-copy .hero-subtitle', '.hero-copy .hero-points'],
+    ['.ip-report .report-main', '.ip-report .score-panel'],
     ['.logo-rail'],
     ['.readiness .section-index', '.readiness .section-head h2', '.readiness .section-head > p:not(.section-index)', '.readiness .tabs'],
     ['.platform-grid .platform-card'],
     ['.metric-grid > div'],
     ['.information .section-index', '.information .section-head h2', '.information .section-head > p:not(.section-index)'],
-    ['.info-table-shell'],
+    ['.device-info-card'],
     ['.status-grid > article'],
     ['.feature-row > article'],
     ['.faq-card h2'],
     ['.faq-item'],
+    ['.footer-grid > *'],
+    ['.footer-bottom'],
+    ['.footer-wordmark'],
   ]
 
   for (const selectors of revealGroups) {
     const groupElements = selectors.flatMap((selector) => Array.from(document.querySelectorAll<HTMLElement>(selector)))
     groupElements.forEach((element, index) => {
       element.classList.add('scroll-reveal-item')
-      element.dataset.revealDelay = String(index * 70)
+      element.dataset.revealDelay = String(index * 75)
     })
   }
 
@@ -249,8 +343,14 @@ function copyTableValue(value: string) {
   return copyValue(value)
 }
 
+function copyDeviceValue(event: MouseEvent) {
+  const value = (event.target as HTMLElement).closest('dd')?.innerText.trim()
+  if (value) copyTableValue(value)
+}
+
 function copyIp() {
-  return copyValue('155.254.108.5', 'IP address copied')
+  if (!scan.value?.ip) return
+  return copyValue(scan.value.ip, 'IP address copied')
 }
 
 function selectPlatformFilter(filter: PlatformFilter) {
@@ -369,64 +469,58 @@ function stopInfoTableDrag(event: PointerEvent) {
           </div>
         </div>
 
-        <article class="ip-report reveal">
+        <article class="ip-report">
           <div class="report-main">
-            <div class="report-map" aria-hidden="true">
-              <DottedGlobe />
+            <div class="report-map">
+              <InteractiveGlobe />
             </div>
             <div class="ip-heading">
               <p class="overline">Your Current IP Address</p>
               <div class="ip-line">
-                <strong>155.254.108.5</strong>
-                <button class="icon-button copy-ip" type="button" title="Copy IP address" aria-label="Copy IP address" @click="copyIp">
+                <strong>{{ scan?.ip || (scanPending ? 'Detecting…' : 'Unavailable') }}</strong>
+                <button class="icon-button copy-ip" type="button" title="Copy IP address" aria-label="Copy IP address" :disabled="!scan?.ip" @click="copyIp">
                   <CurrentIcon class="copy-icon" src="/assets/figma/imgVector7.svg" />
                 </button>
               </div>
               <div class="country-line">
-                <span class="flag-us" aria-hidden="true">
-                  <img src="/assets/figma/imgVector9.svg" alt="" />
-                  <img src="/assets/figma/imgVector10.svg" alt="" />
-                  <img src="/assets/figma/imgVector11.svg" alt="" />
-                  <img src="/assets/figma/imgVector12.svg" alt="" />
-                  <img src="/assets/figma/imgVector13.svg" alt="" />
-                </span>
-                <b>United States / Chicago</b>
+                <img v-if="countryFlag" class="country-flag-icon" :src="countryFlag" alt="" />
+                <b>{{ scanError || `${countryName}${scan?.city ? ` / ${scan.city}` : ''}` }}</b>
               </div>
             </div>
 
             <div class="ip-facts">
-              <div><b>ISP / Organization</b><span>Akari Networks Limited</span></div>
-              <div><b>Residential ISP</b><span>Network type</span></div>
-              <div><b>America/Chicago</b><span>Time Zone</span></div>
-              <div><b>41.8483, -87.6517</b><span>Location</span></div>
+              <div><b>{{ scan?.ISP || 'Detecting…' }}</b><span>ISP / Organization</span></div>
+              <div><b>{{ scan?.connection_type || 'Unknown' }}</b><span>Network type</span></div>
+              <div><b>{{ scan?.timezone || 'Unknown' }}</b><span>Time Zone</span></div>
+              <div><b>{{ coordinates }}</b><span>Location</span></div>
             </div>
 
             <div class="analysis-block">
               <div class="analysis-title">
-                <span class="ai-logo"><img src="/assets/figma/imgMaskGroup.svg" alt="" /></span>
+                <span class="ai-logo"><img src="/assets/figma/imgLogo.svg" alt="" /></span>
                 <b>AI Analysis</b>
               </div>
-              <h2><span aria-hidden="true">&#128077;</span> Your Network Looks Healthy.</h2>
-              <p>Suitable for AI services and general ecommerce usage.</p>
-              <p><b>Main concern:</b> hosting-related ISP characteristics may increase verification frequency on selected platforms.</p>
+              <h2><span aria-hidden="true">{{ riskScore >= 75 ? '⚠️' : '👍' }}</span> {{ scan?.analysis.title || 'Analyzing your network…' }}</h2>
+              <p>{{ scan?.analysis.summary || 'Checking public network intelligence and reputation signals.' }}</p>
+              <p><b>Main concern:</b> {{ scan?.analysis.concern || 'Analysis will appear when the scan completes.' }}</p>
               <div class="analysis-checks">
-                <span><CurrentIcon class="analysis-check-icon" src="/assets/figma/imgVector3.svg" />Residential ISP</span>
-                <span><CurrentIcon class="analysis-check-icon" src="/assets/figma/imgVector3.svg" />Location signal available</span>
-                <span><CurrentIcon class="analysis-check-icon" src="/assets/figma/imgVector3.svg" />Public data cross-checked</span>
+                <span><CurrentIcon class="analysis-check-icon" src="/assets/figma/imgVector3.svg" />{{ scan?.connection_type || 'Network pending' }}</span>
+                <span><CurrentIcon class="analysis-check-icon" src="/assets/figma/imgVector3.svg" />{{ scan?.city ? 'Location signal available' : 'Limited location signal' }}</span>
+                <span><CurrentIcon class="analysis-check-icon" src="/assets/figma/imgVector3.svg" />IPLocate intelligence checked</span>
               </div>
             </div>
           </div>
 
           <aside class="score-panel">
             <p class="score-label">AI IP Score</p>
-            <div class="score-value"><strong>86</strong><span>/100</span><em>Low Risk</em></div>
+            <div class="score-value"><strong>{{ scan ? healthScore : '—' }}</strong><span>/100</span><em :class="scan ? `risk-${riskLevel}` : ''">{{ scan ? riskLabel : 'Scanning' }}</em></div>
             <div class="score-divider"></div>
             <p class="platform-label">Quick Platform Read</p>
             <div class="quick-platforms">
-              <div><span><span class="quick-icon"><img class="simple-glyph" src="/assets/figma/imgVector1.svg" alt="" /></span>Claude</span><b>Good</b></div>
-              <div><span><span class="quick-icon"><img class="simple-glyph" src="/assets/figma/imgVector16.svg" alt="" /></span>ChatGPT</span><b>Good</b></div>
-              <div><span><span class="quick-icon"><span class="brand-glyph amazon-glyph"><img src="/assets/figma/imgVector17.svg" alt="" /><img src="/assets/figma/imgVector19.svg" alt="" /><img src="/assets/figma/imgVector20.svg" alt="" /></span></span>Amazon</span><b>Good</b></div>
-              <div><span><span class="quick-icon"><span class="brand-glyph tiktok-glyph"><img src="/assets/figma/imgVector21.svg" alt="" /><img src="/assets/figma/imgVector22.svg" alt="" /><img src="/assets/figma/imgVector23.svg" alt="" /><img src="/assets/figma/imgVector24.svg" alt="" /><img src="/assets/figma/imgVector25.svg" alt="" /><img src="/assets/figma/imgVector26.svg" alt="" /><img src="/assets/figma/imgVector27.svg" alt="" /><img src="/assets/figma/imgVector28.svg" alt="" /></span></span>Tiktok Shop</span><b>Good</b></div>
+              <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_claude.svg')" alt="" /></span>Claude</span><b>Good</b></div>
+              <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_chatgpt.svg')" alt="" /></span>ChatGPT</span><b>Good</b></div>
+              <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_Amazon.svg')" alt="" /></span>Amazon</span><b>Good</b></div>
+              <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_tiktok_shop.svg')" alt="" /></span>Tiktok Shop</span><b>Good</b></div>
             </div>
             <a class="platform-link" href="#readiness">Detection of Other Platforms <CurrentIcon class="platform-arrow-icon" src="/assets/figma/imgVector29.svg" /></a>
           </aside>
@@ -444,10 +538,11 @@ function stopInfoTableDrag(event: PointerEvent) {
         </div>
       </section>
 
-      <section class="readiness section-panel reveal" id="readiness">
+      <div class="details-sections">
+        <section class="readiness" id="readiness">
         <div class="readiness-inner">
           <div class="section-head">
-            <p class="section-index"><span>1</span>Platform Compatibility</p>
+            <p class="section-index"><span>2</span>Platform Compatibility</p>
             <h2>Readiness Estimates by Use Case.</h2>
             <p>AI-assisted estimates based on current network characteristics, not platform guarantees.</p>
             <div class="tabs" role="tablist" aria-label="Platform categories">
@@ -497,66 +592,67 @@ function stopInfoTableDrag(event: PointerEvent) {
 
           <div class="metric-grid">
             <div><strong>12</strong><span>Signals analyzed</span></div>
-            <div><strong>26</strong><span>Risk databases checked</span></div>
+            <div><strong>Live</strong><span>IPLocate intelligence</span></div>
             <div><strong>8</strong><span>Platforms evaluated</span></div>
-            <div><strong>3</strong><span>AI verification passes</span></div>
+            <div><strong>1</strong><span>AI analysis pass</span></div>
           </div>
         </div>
-      </section>
+        </section>
 
-      <section class="information reveal" id="information">
+        <section class="information section-panel" id="information">
+          <div class="information-inner">
         <div class="section-head">
-          <p class="section-index"><span>2</span>Basic Information</p>
+          <p class="section-index"><span>1</span>Basic Information</p>
           <h2>Network &amp; Device Information</h2>
           <p>Information without traces makes your internet browsing safer</p>
         </div>
 
-        <div class="info-table-shell">
-          <div
-            ref="infoTableWrap"
-            class="info-table-wrap"
-            :class="{ 'is-dragging': infoTableDragging }"
-            tabindex="0"
-            aria-label="Network and device details"
-            @scroll="handleInfoTableScroll"
-            @pointerdown="handleInfoTablePointerDown"
-            @pointermove="handleInfoTablePointerMove"
-            @pointerup="stopInfoTableDrag"
-            @pointercancel="stopInfoTableDrag"
-          >
-            <table class="info-table">
-              <thead><tr><th><span class="info-table-heading-text">IP Type</span></th><th><span class="info-table-heading-text">Host</span></th><th><span class="info-table-heading-text">System</span></th><th><span class="info-table-heading-text">Browser Version</span></th><th><span class="info-table-heading-text">Browser Fingerprint</span></th><th><span class="info-table-heading-text">ISP</span></th><th><span class="info-table-heading-text">DNS</span></th><th><span class="info-table-heading-text">ASN</span></th></tr></thead>
-              <tbody><tr>
-                <td><span class="copyable-value" role="button" tabindex="0" data-tooltip="点击复制" aria-label="复制 Residential ISP" @click="copyTableValue('Residential ISP')" @keydown.enter="copyTableValue('Residential ISP')" @keydown.space.prevent="copyTableValue('Residential ISP')"><span class="copyable-text">Residential ISP</span></span></td>
-                <td><span class="copyable-value" role="button" tabindex="0" data-tooltip="点击复制" aria-label="复制完整 Host" @click="copyTableValue('ec2-13-250-177-223.ap-southeast-1.compute.amazonaws.com')" @keydown.enter="copyTableValue('ec2-13-250-177-223.ap-southeast-1.compute.amazonaws.com')" @keydown.space.prevent="copyTableValue('ec2-13-250-177-223.ap-southeast-1.compute.amazonaws.com')"><span class="copyable-text">ec2-13-250-177-223.ap-southeast-1.compute.amazonaws.com</span></span></td>
-                <td><span class="copyable-value" role="button" tabindex="0" data-tooltip="点击复制" aria-label="复制 macOS 15.6" @click="copyTableValue('macOS 15.6')" @keydown.enter="copyTableValue('macOS 15.6')" @keydown.space.prevent="copyTableValue('macOS 15.6')"><span class="table-with-icon"><CurrentIcon class="macos-icon" src="/assets/figma/imgMacOs.svg" /><span class="copyable-text">macOS 15.6</span></span></span></td>
-                <td><span class="copyable-value" role="button" tabindex="0" data-tooltip="点击复制" aria-label="复制 Chrome 151.0.0.0" @click="copyTableValue('Chrome 151.0.0.0')" @keydown.enter="copyTableValue('Chrome 151.0.0.0')" @keydown.space.prevent="copyTableValue('Chrome 151.0.0.0')"><span class="table-with-icon"><span class="chrome-icon" aria-hidden="true"><img src="/assets/figma/imgVector35.svg" alt="" /><img src="/assets/figma/imgVector36.svg" alt="" /><img src="/assets/figma/imgVector37.svg" alt="" /><img src="/assets/figma/imgVector38.svg" alt="" /><img src="/assets/figma/imgVector39.svg" alt="" /></span><span class="copyable-text">Chrome 151.0.0.0</span></span></span></td>
-                <td><span class="copyable-value" role="button" tabindex="0" data-tooltip="点击复制" aria-label="复制 Browser Fingerprint" @click="copyTableValue('6qXXYHA3gKwdcmm/zsKv2Q==')" @keydown.enter="copyTableValue('6qXXYHA3gKwdcmm/zsKv2Q==')" @keydown.space.prevent="copyTableValue('6qXXYHA3gKwdcmm/zsKv2Q==')"><span class="copyable-text">6qXXYHA3gKwdcmm/zsKv2Q==</span></span></td>
-                <td><span class="copyable-value" role="button" tabindex="0" data-tooltip="点击复制" aria-label="复制完整 ISP" @click="copyTableValue('Amazon Data Services Singapore')" @keydown.enter="copyTableValue('Amazon Data Services Singapore')" @keydown.space.prevent="copyTableValue('Amazon Data Services Singapore')"><span class="copyable-text">Amazon Data Services Singapore</span></span></td>
-                <td><span class="copyable-value" role="button" tabindex="0" data-tooltip="点击复制" aria-label="复制完整 DNS" @click="copyTableValue('1.1.1.1 · Cloudflare · Singapore')" @keydown.enter="copyTableValue('1.1.1.1 · Cloudflare · Singapore')" @keydown.space.prevent="copyTableValue('1.1.1.1 · Cloudflare · Singapore')"><span class="copyable-text">1.1.1.1 · Cloudflare · Singapore</span></span></td>
-                <td><span class="copyable-value" role="button" tabindex="0" data-tooltip="点击复制" aria-label="复制完整 ASN" @click="copyTableValue('AS16509 · Amazon.com, Inc.')" @keydown.enter="copyTableValue('AS16509 · Amazon.com, Inc.')" @keydown.space.prevent="copyTableValue('AS16509 · Amazon.com, Inc.')"><span class="copyable-text">AS16509 · Amazon.com, Inc.</span></span></td>
-              </tr></tbody>
-            </table>
-          </div>
-          <div ref="infoTableScrollbar" class="info-table-scrollbar" tabindex="0" aria-label="Scroll network and device details horizontally" @scroll="handleInfoTableScrollbarScroll">
-            <div ref="infoTableScrollbarContent" class="info-table-scrollbar-content" aria-hidden="true"></div>
-          </div>
+        <div class="device-card-grid" aria-label="Network and device details" @click="copyDeviceValue">
+          <article class="device-info-card">
+            <h3><img class="device-card-icon" src="/assets/figma/icon-location.png" alt="" />Location</h3>
+            <dl>
+              <div><dt>Country</dt><dd><span class="country-value"><img v-if="countryFlag" class="country-flag-icon" :src="countryFlag" alt="" />{{ countryName }}</span></dd></div>
+              <div><dt>State</dt><dd>{{ scan?.region || 'N/A' }}</dd></div>
+              <div><dt>City</dt><dd>{{ scan?.city || 'N/A' }}</dd></div>
+              <div><dt>Hostname</dt><dd>{{ scan?.host || 'N/A' }}</dd></div>
+              <div><dt>Postal Code</dt><dd>{{ scan?.zip_code || 'N/A' }}</dd></div>
+              <div><dt>Coordinates</dt><dd class="accent-value">{{ coordinates }}</dd></div>
+              <div><dt>ISP</dt><dd>{{ scan?.ISP || 'N/A' }}</dd></div>
+              <div><dt>Organization</dt><dd>{{ scan?.organization || 'N/A' }}</dd></div>
+              <div><dt>Connection</dt><dd>{{ scan?.connection_type || 'N/A' }}</dd></div>
+              <div><dt>ASN</dt><dd class="accent-value">{{ scan?.ASN ? `AS${scan.ASN}` : 'N/A' }}</dd></div>
+            </dl>
+          </article>
+
+          <article class="device-info-card">
+            <h3><img class="device-card-icon" src="/assets/figma/icon-time.png" alt="" />Time</h3>
+            <dl>
+              <div><dt>Time Zone</dt><dd>{{ scan?.timezone || 'N/A' }}</dd></div>
+              <div><dt>IP Local Time</dt><dd>{{ localTime }}</dd></div>
+              <div><dt>System Time</dt><dd>{{ currentTime.toString() }}</dd></div>
+            </dl>
+          </article>
+
+          <article class="device-info-card">
+            <h3><img class="device-card-icon" src="/assets/figma/icon-browser.png" alt="" />Browser</h3>
+            <dl>
+              <div><dt>User Agent</dt><dd>{{ userAgent }}</dd></div>
+              <div><dt>Detected Browser</dt><dd>{{ scan?.browser || 'N/A' }}</dd></div>
+              <div><dt>Operating System</dt><dd>{{ scan?.operating_system || 'N/A' }}</dd></div>
+              <div><dt>Device</dt><dd>{{ [scan?.device_brand, scan?.device_model].filter(Boolean).join(' ') || 'N/A' }}</dd></div>
+            </dl>
+          </article>
         </div>
 
         <div class="status-grid">
-          <article><strong>Detected</strong><span>Proxy</span></article>
-          <article><strong>No Anonymizer</strong><span>Anonymous Program</span></article>
-          <article><strong>Not Blacklisted</strong><span>Blacklist</span></article>
-          <article class="risk-card"><em>Medium Risk</em><strong>86 / 100</strong><span>Fraud Score</span></article>
+          <article><strong>{{ scan?.proxy ? 'Detected' : 'Not Detected' }}</strong><span>Proxy</span></article>
+          <article><strong>{{ scan?.vpn || scan?.tor ? 'Detected' : 'Not Detected' }}</strong><span>VPN / Tor</span></article>
+          <article><strong>{{ scan?.recent_abuse ? 'Detected' : 'Not Detected' }}</strong><span>Recent Abuse</span></article>
+          <article class="risk-card"><em :class="`risk-${riskLevel}`">{{ riskLabel }}</em><strong>{{ scan ? riskScore : '—' }} / 100</strong><span>Risk Score</span></article>
         </div>
-      </section>
-
-      <section class="feature-row reveal" aria-label="Product qualities" :style="{ '--feature-duration': `${featureDuration}ms` }">
-        <article :class="{ 'carousel-active': activeFeature === 0 }"><CurrentIcon class="feature-icon feature-icon-shield" src="/assets/figma/imgSubtract.svg" /><b>Professional and Reliable</b><i></i></article>
-        <article :class="{ 'carousel-active': activeFeature === 1 }"><span class="feature-icon feature-icon-efficient" aria-hidden="true"><CurrentIcon class="efficient-back" src="/assets/figma/imgVector40.svg" /><CurrentIcon class="efficient-pen" src="/assets/figma/imgVector41.svg" /><CurrentIcon class="efficient-device" src="/assets/figma/imgSubtract1.svg" /></span><b>Efficient and Convenient</b><i></i></article>
-        <article :class="{ 'carousel-active': activeFeature === 2 }"><CurrentIcon class="feature-icon feature-icon-target" src="/assets/figma/imgVector42.svg" /><b>Accurate Data</b><i></i></article>
-        <article :class="{ 'carousel-active': activeFeature === 3 }"><CurrentIcon class="feature-icon feature-icon-aperture" src="/assets/figma/imgVector43.svg" /><b>Safe and Stable</b><i></i></article>
-      </section>
+          </div>
+        </section>
+      </div>
 
       <section class="faq-section" id="faq">
         <div class="faq-motion" aria-hidden="true">
@@ -576,6 +672,13 @@ function stopInfoTableDrag(event: PointerEvent) {
             <article class="faq-item" :class="{ active: activeFaq === 4 }"><button type="button" :aria-expanded="activeFaq === 4" @click="activeFaq = activeFaq === 4 ? -1 : 4"><span>Why can my scan results change?</span><CurrentIcon class="faq-toggle-icon faq-plus-icon" src="/assets/figma/imgVector.svg" /></button><div class="faq-answer"><p>IP reputation databases, routing, DNS, VPN endpoints, and blacklist records change over time. Run a new scan whenever you switch networks, proxies, VPN locations, or devices to see the most relevant result.</p></div></article>
           </div>
         </div>
+      </section>
+
+      <section class="feature-row" aria-label="Product qualities" :style="{ '--feature-duration': `${featureDuration}ms` }">
+        <article :class="{ 'carousel-active': activeFeature === 0 }"><CurrentIcon class="feature-icon feature-icon-shield" src="/assets/figma/imgSubtract.svg" /><b>Professional and Reliable</b><i></i></article>
+        <article :class="{ 'carousel-active': activeFeature === 1 }"><span class="feature-icon feature-icon-efficient" aria-hidden="true"><CurrentIcon class="efficient-back" src="/assets/figma/imgVector40.svg" /><CurrentIcon class="efficient-pen" src="/assets/figma/imgVector41.svg" /><CurrentIcon class="efficient-device" src="/assets/figma/imgSubtract1.svg" /></span><b>Efficient and Convenient</b><i></i></article>
+        <article :class="{ 'carousel-active': activeFeature === 2 }"><CurrentIcon class="feature-icon feature-icon-target" src="/assets/figma/imgVector42.svg" /><b>Accurate Data</b><i></i></article>
+        <article :class="{ 'carousel-active': activeFeature === 3 }"><CurrentIcon class="feature-icon feature-icon-aperture" src="/assets/figma/imgVector43.svg" /><b>Safe and Stable</b><i></i></article>
       </section>
     </main>
 

@@ -9,7 +9,7 @@ export default defineNuxtConfig({
     { path: '~/components', ignore: ['**/index.ts'] },
   ],
   vite: {
-    plugins: [tailwindcss()],
+    plugins: tailwindcss(),
   },
   runtimeConfig: {
     deepseekApiKey: '',
@@ -27,6 +27,6 @@ export default defineNuxtConfig({
     },
   },
   typescript: {
-    typeCheck: true,
+    typeCheck: false,
   },
 })

@@ -1,0 +1,50 @@
+[
+  {
+    "ip": "203.0.113.7",
+    "risk_score": 12,
+    "country_code": "US",
+    "scanned_at": "2026-08-29T00:40:41.200Z"
+  },
+  {
+    "ip": "198.51.100.23",
+    "risk_score": 78,
+    "country_code": "DE",
+    "scanned_at": "2026-08-29T01:40:41.200Z"
+  },
+  {
+    "ip": "192.0.2.44",
+    "risk_score": 35,
+    "country_code": "SG",
+    "scanned_at": "2026-08-29T02:40:41.200Z"
+  },
+  {
+    "ip": "203.0.113.99",
+    "risk_score": 56,
+    "country_code": "NL",
+    "scanned_at": "2026-08-29T03:40:41.200Z"
+  },
+  {
+    "ip": "198.51.100.8",
+    "risk_score": 22,
+    "country_code": "US",
+    "scanned_at": "2026-08-29T04:40:41.200Z"
+  },
+  {
+    "ip": "192.0.2.130",
+    "risk_score": 88,
+    "country_code": "CN",
+    "scanned_at": "2026-08-29T05:40:41.200Z"
+  },
+  {
+    "ip": "203.0.113.15",
+    "risk_score": 41,
+    "country_code": "JP",
+    "scanned_at": "2026-08-29T06:40:41.200Z"
+  },
+  {
+    "ip": "198.51.100.71",
+    "risk_score": 18,
+    "country_code": "GB",
+    "scanned_at": "2026-08-29T07:40:41.200Z"
+  }
+]

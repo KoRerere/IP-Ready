@@ -42,11 +42,12 @@ interface IpScanResult {
   scanned_at: string
 }
 
+const { locale, t } = useI18n()
 const activeFilter = ref<PlatformFilter>('all')
 const activeFaq = ref(0)
 const activeFeature = ref(0)
 const copied = ref(false)
-const copyToastMessage = ref('Copied to clipboard')
+const copyToastMessage = ref(t('misc.copied'))
 const platformHasSwapped = ref(false)
 const animatedPlatformScores = ref<number[]>([])
 const scan = ref<IpScanResult | null>(null)
@@ -54,6 +55,21 @@ const scanError = ref('')
 const scanPending = ref(true)
 const userAgent = ref('Detecting browser…')
 const currentTime = ref(new Date())
+
+const supportedServices = [
+  { name: 'AliExpress', src: '/assets/figma/imgAliexpress.svg' },
+  { name: 'Shopify', src: '/assets/figma/imgShopify.svg' },
+  { name: 'eBay', src: '/assets/figma/imgEbay.svg' },
+  { name: 'Facebook', src: '/assets/figma/imgFacebook.svg' },
+  { name: 'Etsy', src: '/assets/figma/imgEtsy.svg' },
+  { name: 'Amazon', src: '/assets/figma/imgAmazon.svg' },
+  { name: 'Netflix', src: '/assets/figma/imgNetflix.svg' },
+  { name: 'TikTok', src: '/assets/figma/imgTiktok.svg' },
+  { name: 'YouTube', src: '/assets/figma/imgYoutube.svg' },
+  { name: 'Temu', src: '/assets/figma/imgTemu.svg' },
+  { name: 'Best Buy', src: '/assets/figma/imgBestuy.svg' },
+  { name: 'Shopee', src: '/assets/figma/imgShopee.svg' },
+]
 
 let revealObserver: IntersectionObserver | undefined
 let platformScoreObserver: IntersectionObserver | undefined
@@ -119,18 +135,18 @@ const platformGroups: Record<PlatformFilter, PlatformCard[]> = {
 const riskScore = computed(() => scan.value?.risk_score ?? 0)
 const healthScore = computed(() => scan.value ? Math.max(0, 100 - riskScore.value) : 0)
 const riskLevel = computed(() => riskScore.value > 70 ? 'high' : riskScore.value >= 40 ? 'medium' : 'low')
-const riskLabel = computed(() => riskLevel.value === 'high' ? 'High Risk' : riskLevel.value === 'medium' ? 'Medium Risk' : 'Low Risk')
+const riskLabel = computed(() => riskLevel.value === 'high' ? t('risk.high') : riskLevel.value === 'medium' ? t('risk.medium') : t('risk.low'))
 const countryName = computed(() => {
   const code = scan.value?.country_code
-  if (!code) return 'Detecting location…'
-  return new Intl.DisplayNames(['en'], { type: 'region' }).of(code) || code
+  if (!code) return t('report.detectingLocation')
+  return new Intl.DisplayNames([locale.value === 'zh' ? 'zh-CN' : 'en'], { type: 'region' }).of(code) || code
 })
 const countryFlag = computed(() => {
   const code = scan.value?.country_code?.toUpperCase()
   return code?.length === 2 ? `/assets/icons/flags/${code}.svg` : ''
 })
 const coordinates = computed(() => {
-  if (scan.value?.latitude == null || scan.value?.longitude == null) return 'N/A'
+  if (scan.value?.latitude == null || scan.value?.longitude == null) return t('misc.na')
   return `${scan.value.latitude}, ${scan.value.longitude}`
 })
 const displayedPlatforms = computed(() => {
@@ -141,12 +157,17 @@ const displayedPlatforms = computed(() => {
   }))
 })
 const localTime = computed(() => {
-  if (!scan.value?.timezone) return 'N/A'
+  if (!scan.value?.timezone) return t('misc.na')
   try {
-    return currentTime.value.toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'long', timeZone: scan.value.timezone })
+    return currentTime.value.toLocaleString(locale.value === 'zh' ? 'zh-CN' : 'en-US', { dateStyle: 'full', timeStyle: 'long', timeZone: scan.value.timezone })
   } catch {
-    return 'N/A'
+    return t('misc.na')
   }
+})
+// AI 分析标题前的表情：检测中不显示，状态好 👍，状态差 ⚠️
+const analysisEmoji = computed(() => {
+  if (!scan.value) return ''
+  return healthScore.value >= 70 ? '👍' : '⚠️'
 })
 
 async function loadIpScan() {
@@ -156,7 +177,7 @@ async function loadIpScan() {
     scan.value = await $fetch<IpScanResult>('/api/ip-check')
   } catch (error) {
     const apiError = error as { data?: { statusMessage?: string }; message?: string }
-    scanError.value = apiError.data?.statusMessage || apiError.message || 'IP scan failed.'
+    scanError.value = apiError.data?.statusMessage || apiError.message || t('misc.scanFailed')
   } finally {
     scanPending.value = false
   }
@@ -209,27 +230,12 @@ function preventBottomOverscroll(event: WheelEvent) {
   if (atBottom) event.preventDefault()
 }
 
-const supportedServices = [
-  { name: 'AliExpress', src: '/assets/figma/imgAliexpress.svg' },
-  { name: 'Shopify', src: '/assets/figma/imgShopify.svg' },
-  { name: 'eBay', src: '/assets/figma/imgEbay.svg' },
-  { name: 'Facebook', src: '/assets/figma/imgFacebook.svg' },
-  { name: 'Etsy', src: '/assets/figma/imgEtsy.svg' },
-  { name: 'Amazon', src: '/assets/figma/imgAmazon.svg' },
-  { name: 'Netflix', src: '/assets/figma/imgNetflix.svg' },
-  { name: 'TikTok', src: '/assets/figma/imgTiktok.svg' },
-  { name: 'YouTube', src: '/assets/figma/imgYoutube.svg' },
-  { name: 'Temu', src: '/assets/figma/imgTemu.svg' },
-  { name: 'Best Buy', src: '/assets/figma/imgBestuy.svg' },
-  { name: 'Shopee', src: '/assets/figma/imgShopee.svg' },
-]
-
 useHead({
-  title: 'IP-Ready - AI IP Intelligence',
+  title: () => t('meta.title'),
   meta: [
     {
       name: 'description',
-      content: 'AI-powered IP intelligence, risk analysis, and platform readiness.',
+      content: () => t('meta.description'),
     },
   ],
   link: [
@@ -304,6 +310,11 @@ onMounted(() => {
 
   syncInfoTableScrollWidth()
   window.addEventListener('resize', syncInfoTableScrollWidth)
+  window.addEventListener('resize', hidePlatformPill)
+  window.addEventListener('resize', syncTabsPill)
+  syncTabsPill()
+  // 字体加载完成后按钮宽度会变，重新对齐胶囊
+  document.fonts?.ready.then(() => syncTabsPill())
 
   featureTimer = setInterval(() => {
     activeFeature.value = (activeFeature.value + 1) % 4
@@ -313,6 +324,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('wheel', preventBottomOverscroll)
   window.removeEventListener('resize', syncInfoTableScrollWidth)
+  window.removeEventListener('resize', hidePlatformPill)
+  window.removeEventListener('resize', syncTabsPill)
   revealObserver?.disconnect()
   platformScoreObserver?.disconnect()
   if (platformScoreFrame !== undefined) cancelAnimationFrame(platformScoreFrame)
@@ -322,7 +335,7 @@ onBeforeUnmount(() => {
   revealTimers.forEach(clearTimeout)
 })
 
-async function copyValue(value: string, message = 'Copied to clipboard') {
+async function copyValue(value: string, message = t('misc.copied')) {
   await navigator.clipboard.writeText(value)
   copyToastMessage.value = message
   copied.value = true
@@ -343,20 +356,73 @@ function copyTableValue(value: string) {
   return copyValue(value)
 }
 
+function hasScanValue(value: unknown) {
+  return value !== undefined && value !== null && value !== ''
+}
+
 function copyDeviceValue(event: MouseEvent) {
-  const value = (event.target as HTMLElement).closest('dd')?.innerText.trim()
+  const dd = (event.target as HTMLElement).closest('dd')
+  if (!dd?.classList.contains('copyable')) return
+  const value = dd.innerText.trim()
   if (value) copyTableValue(value)
 }
 
 function copyIp() {
   if (!scan.value?.ip) return
-  return copyValue(scan.value.ip, 'IP address copied')
+  return copyValue(scan.value.ip, t('misc.ipCopied'))
 }
 
 function selectPlatformFilter(filter: PlatformFilter) {
   if (filter === activeFilter.value) return
   platformHasSwapped.value = true
+  hidePlatformPill()
   activeFilter.value = filter
+  nextTick(syncTabsPill)
+}
+
+const tabsEl = ref<HTMLElement | null>(null)
+const tabsPill = reactive({ x: 0, y: 0, w: 0, ready: false, snap: false })
+
+function syncTabsPill() {
+  const active = tabsEl.value?.querySelector('button.active') as HTMLElement | null
+  if (!active) return
+  tabsPill.x = active.offsetLeft
+  tabsPill.y = active.offsetTop
+  tabsPill.w = active.offsetWidth
+  if (!tabsPill.ready) {
+    // 首次定位不播放滑动动画
+    tabsPill.snap = true
+    requestAnimationFrame(() => requestAnimationFrame(() => { tabsPill.snap = false }))
+  }
+  tabsPill.ready = true
+}
+
+function hoverTabPill(event: Event) {
+  const btn = event.currentTarget as HTMLElement
+  tabsPill.x = btn.offsetLeft
+  tabsPill.y = btn.offsetTop
+  tabsPill.w = btn.offsetWidth
+  tabsPill.ready = true
+}
+
+const platformPill = reactive({ x: 0, y: 0, w: 0, h: 0, visible: false, snap: false })
+
+function movePlatformPill(event: Event) {
+  const card = event.currentTarget as HTMLElement
+  platformPill.x = card.offsetLeft
+  platformPill.y = card.offsetTop
+  platformPill.w = card.offsetWidth
+  platformPill.h = card.offsetHeight
+  if (!platformPill.visible) {
+    // 首次出现时直接就位，不播放滑入动画
+    platformPill.snap = true
+    requestAnimationFrame(() => requestAnimationFrame(() => { platformPill.snap = false }))
+  }
+  platformPill.visible = true
+}
+
+function hidePlatformPill() {
+  platformPill.visible = false
 }
 
 function syncInfoTableScrollWidth() {
@@ -457,28 +523,29 @@ function stopInfoTableDrag(event: PointerEvent) {
         </div>
 
         <div class="hero-copy">
-          <p class="gradient-label reveal">AI-Powered IP Intelligence</p>
-          <h1 class="reveal"><span>Know Your IP.</span>Understand its Risk and Platform Readiness.</h1>
+          <p class="gradient-label reveal">{{ t('hero.label') }}</p>
+          <h1 class="reveal"><span>{{ t('hero.titleLead') }}</span>{{ t('hero.titleRest') }}</h1>
           <p class="hero-subtitle reveal">
-            AI IP Checker turns public network data into a clear score, an explainable verdict, and practical platform-readiness signals.
+            {{ t('hero.subtitle') }}
           </p>
           <div class="hero-points reveal" aria-label="Product benefits">
-            <span><CurrentIcon class="hero-point-icon hero-point-shield" src="/assets/figma/imgVector4.svg" />Explainable Score</span>
-            <span><CurrentIcon class="hero-point-icon hero-point-data" src="/assets/figma/imgVector5.svg" />Public Network Data</span>
-            <span><CurrentIcon class="hero-point-icon hero-point-ai" src="/assets/figma/imgVector6.svg" />AI-Assisted Verdict</span>
+            <span><CurrentIcon class="hero-point-icon hero-point-shield" src="/assets/figma/imgVector4.svg" />{{ t('hero.pointScore') }}</span>
+            <span><CurrentIcon class="hero-point-icon hero-point-data" src="/assets/figma/imgVector5.svg" />{{ t('hero.pointData') }}</span>
+            <span><CurrentIcon class="hero-point-icon hero-point-ai" src="/assets/figma/imgVector6.svg" />{{ t('hero.pointAI') }}</span>
           </div>
         </div>
 
         <article class="ip-report">
+          <div class="report-frame">
           <div class="report-main">
             <div class="report-map">
               <InteractiveGlobe />
             </div>
             <div class="ip-heading">
-              <p class="overline">Your Current IP Address</p>
+              <p class="overline">{{ t('report.yourIp') }}</p>
               <div class="ip-line">
-                <strong>{{ scan?.ip || (scanPending ? 'Detecting…' : 'Unavailable') }}</strong>
-                <button class="icon-button copy-ip" type="button" title="Copy IP address" aria-label="Copy IP address" :disabled="!scan?.ip" @click="copyIp">
+                <strong>{{ scan?.ip || (scanPending ? t('report.detecting') : t('report.unavailable')) }}</strong>
+                <button class="icon-button copy-ip" type="button" :title="t('report.copyIp')" :aria-label="t('report.copyIp')" :disabled="!scan?.ip" @click="copyIp">
                   <CurrentIcon class="copy-icon" src="/assets/figma/imgVector7.svg" />
                 </button>
               </div>
@@ -489,41 +556,42 @@ function stopInfoTableDrag(event: PointerEvent) {
             </div>
 
             <div class="ip-facts">
-              <div><b>{{ scan?.ISP || 'Detecting…' }}</b><span>ISP / Organization</span></div>
-              <div><b>{{ scan?.connection_type || 'Unknown' }}</b><span>Network type</span></div>
-              <div><b>{{ scan?.timezone || 'Unknown' }}</b><span>Time Zone</span></div>
-              <div><b>{{ coordinates }}</b><span>Location</span></div>
+              <div><b>{{ scan?.ISP || t('report.detecting') }}</b><span>{{ t('report.isp') }}</span></div>
+              <div><b>{{ scan?.connection_type || t('misc.unknown') }}</b><span>{{ t('report.networkType') }}</span></div>
+              <div><b>{{ scan?.timezone || t('misc.unknown') }}</b><span>{{ t('report.timezone') }}</span></div>
+              <div><b>{{ coordinates }}</b><span>{{ t('report.location') }}</span></div>
             </div>
 
             <div class="analysis-block">
               <div class="analysis-title">
                 <span class="ai-logo"><img src="/assets/figma/imgLogo.svg" alt="" /></span>
-                <b>AI Analysis</b>
+                <b>{{ t('report.aiAnalysis') }}</b>
               </div>
-              <h2><span aria-hidden="true">{{ riskScore >= 75 ? '⚠️' : '👍' }}</span> {{ scan?.analysis.title || 'Analyzing your network…' }}</h2>
-              <p>{{ scan?.analysis.summary || 'Checking public network intelligence and reputation signals.' }}</p>
-              <p><b>Main concern:</b> {{ scan?.analysis.concern || 'Analysis will appear when the scan completes.' }}</p>
+              <h2><span v-if="analysisEmoji" aria-hidden="true">{{ analysisEmoji }}</span> {{ scan?.analysis.title || t('report.analyzing') }}</h2>
+              <p>{{ scan?.analysis.summary || t('report.checkingSignals') }}</p>
+              <p><b>{{ t('report.mainConcern') }}</b> {{ scan?.analysis.concern || t('report.analysisPending') }}</p>
               <div class="analysis-checks">
-                <span><CurrentIcon class="analysis-check-icon" src="/assets/figma/imgVector3.svg" />{{ scan?.connection_type || 'Network pending' }}</span>
-                <span><CurrentIcon class="analysis-check-icon" src="/assets/figma/imgVector3.svg" />{{ scan?.city ? 'Location signal available' : 'Limited location signal' }}</span>
-                <span><CurrentIcon class="analysis-check-icon" src="/assets/figma/imgVector3.svg" />IPLocate intelligence checked</span>
+                <span><CurrentIcon class="analysis-check-icon" src="/assets/figma/imgVector3.svg" />{{ scan?.connection_type || t('report.networkPending') }}</span>
+                <span><CurrentIcon class="analysis-check-icon" src="/assets/figma/imgVector3.svg" />{{ scan?.city ? t('report.locationAvailable') : t('report.locationLimited') }}</span>
+                <span><CurrentIcon class="analysis-check-icon" src="/assets/figma/imgVector3.svg" />{{ t('report.iplocateChecked') }}</span>
               </div>
             </div>
           </div>
 
           <aside class="score-panel">
-            <p class="score-label">AI IP Score</p>
-            <div class="score-value"><strong>{{ scan ? healthScore : '—' }}</strong><span>/100</span><em :class="scan ? `risk-${riskLevel}` : ''">{{ scan ? riskLabel : 'Scanning' }}</em></div>
+            <p class="score-label">{{ t('report.score') }}</p>
+            <div class="score-value"><strong>{{ scan ? healthScore : '--' }}</strong><span>/100</span><em :class="scan ? `risk-${riskLevel}` : ''">{{ scan ? riskLabel : t('report.scanning') }}</em></div>
             <div class="score-divider"></div>
-            <p class="platform-label">Quick Platform Read</p>
+            <p class="platform-label">{{ t('report.quickRead') }}</p>
             <div class="quick-platforms">
-              <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_claude.svg')" alt="" /></span>Claude</span><b>Good</b></div>
-              <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_chatgpt.svg')" alt="" /></span>ChatGPT</span><b>Good</b></div>
-              <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_Amazon.svg')" alt="" /></span>Amazon</span><b>Good</b></div>
-              <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_tiktok_shop.svg')" alt="" /></span>Tiktok Shop</span><b>Good</b></div>
+              <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_claude.svg')" alt="" /></span>Claude</span><b>{{ t('report.good') }}</b></div>
+              <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_chatgpt.svg')" alt="" /></span>ChatGPT</span><b>{{ t('report.good') }}</b></div>
+              <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_Amazon.svg')" alt="" /></span>Amazon</span><b>{{ t('report.good') }}</b></div>
+              <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_tiktok_shop.svg')" alt="" /></span>Tiktok Shop</span><b>{{ t('report.good') }}</b></div>
             </div>
-            <a class="platform-link" href="#readiness">Detection of Other Platforms <CurrentIcon class="platform-arrow-icon" src="/assets/figma/imgVector29.svg" /></a>
+            <a class="platform-link" href="#readiness">{{ t('report.otherPlatforms') }} <CurrentIcon class="platform-arrow-icon" src="/assets/figma/imgVector29.svg" /></a>
           </aside>
+          </div>
         </article>
       </section>
 
@@ -542,31 +610,34 @@ function stopInfoTableDrag(event: PointerEvent) {
         <section class="readiness" id="readiness">
         <div class="readiness-inner">
           <div class="section-head">
-            <p class="section-index"><span>2</span>Platform Compatibility</p>
-            <h2>Readiness Estimates by Use Case.</h2>
-            <p>AI-assisted estimates based on current network characteristics, not platform guarantees.</p>
-            <div class="tabs" role="tablist" aria-label="Platform categories">
-              <button :class="{ active: activeFilter === 'all' }" type="button" role="tab" :aria-selected="activeFilter === 'all'" @click="selectPlatformFilter('all')">All</button>
-              <button :class="{ active: activeFilter === 'ai' }" type="button" role="tab" :aria-selected="activeFilter === 'ai'" @click="selectPlatformFilter('ai')">AI Intelligence</button>
-              <button :class="{ active: activeFilter === 'ecommerce' }" type="button" role="tab" :aria-selected="activeFilter === 'ecommerce'" @click="selectPlatformFilter('ecommerce')">Ecommerce</button>
-              <button :class="{ active: activeFilter === 'advertising' }" type="button" role="tab" :aria-selected="activeFilter === 'advertising'" @click="selectPlatformFilter('advertising')">Advertising</button>
-              <button :class="{ active: activeFilter === 'social' }" type="button" role="tab" :aria-selected="activeFilter === 'social'" @click="selectPlatformFilter('social')">Social</button>
+            <p class="section-index"><span>2</span>{{ t('readiness.index') }}</p>
+            <h2>{{ t('readiness.title') }}</h2>
+            <p>{{ t('readiness.subtitle') }}</p>
+            <div ref="tabsEl" class="tabs" role="tablist" aria-label="Platform categories" @mouseleave="syncTabsPill">
+              <span class="tabs-morph-pill" :class="{ ready: tabsPill.ready, snap: tabsPill.snap }" :style="{ transform: `translate(${tabsPill.x}px, ${tabsPill.y}px)`, width: `${tabsPill.w}px` }" aria-hidden="true"></span>
+              <button :class="{ active: activeFilter === 'all' }" type="button" role="tab" :aria-selected="activeFilter === 'all'" @mouseenter="hoverTabPill" @click="selectPlatformFilter('all')">{{ t('tabs.all') }}</button>
+              <button :class="{ active: activeFilter === 'ai' }" type="button" role="tab" :aria-selected="activeFilter === 'ai'" @mouseenter="hoverTabPill" @click="selectPlatformFilter('ai')">{{ t('tabs.ai') }}</button>
+              <button :class="{ active: activeFilter === 'ecommerce' }" type="button" role="tab" :aria-selected="activeFilter === 'ecommerce'" @mouseenter="hoverTabPill" @click="selectPlatformFilter('ecommerce')">{{ t('tabs.ecommerce') }}</button>
+              <button :class="{ active: activeFilter === 'advertising' }" type="button" role="tab" :aria-selected="activeFilter === 'advertising'" @mouseenter="hoverTabPill" @click="selectPlatformFilter('advertising')">{{ t('tabs.advertising') }}</button>
+              <button :class="{ active: activeFilter === 'social' }" type="button" role="tab" :aria-selected="activeFilter === 'social'" @mouseenter="hoverTabPill" @click="selectPlatformFilter('social')">{{ t('tabs.social') }}</button>
             </div>
           </div>
 
           <Transition name="platform-swap" mode="out-in" @before-enter="preparePlatformScores" @enter="animatePlatformScores">
-            <div :key="activeFilter" class="platform-grid" :class="{ 'is-swapped': platformHasSwapped }">
+            <div :key="activeFilter" class="platform-grid" :class="{ 'is-swapped': platformHasSwapped }" @mouseleave="hidePlatformPill">
+              <span class="platform-morph-pill" :class="{ visible: platformPill.visible, snap: platformPill.snap }" :style="{ transform: `translate(${platformPill.x}px, ${platformPill.y}px)`, width: `${platformPill.w}px`, height: `${platformPill.h}px` }" aria-hidden="true"></span>
               <template v-for="(platform, index) in displayedPlatforms" :key="platform.name">
                 <article
                   class="platform-card"
                   :style="{ '--platform-index': index }"
+                  @mouseenter="movePlatformPill"
                 >
                   <div class="platform-name">
                     <span>
                       <PlatformBrandIcon :name="platform.name" :src="platform.icon" />
                       {{ platform.name }}
                     </span>
-                    <CurrentIcon class="check-icon" src="/assets/figma/imgVector2.svg" label="Ready" />
+                      <CurrentIcon class="check-icon" src="/assets/figma/imgVector2.svg" :label="t('platform.ready')" />
                   </div>
                   <div class="platform-info">
                     <div class="platform-score-block">
@@ -576,7 +647,7 @@ function stopInfoTableDrag(event: PointerEvent) {
                       </div>
                       <div class="meter"><i :style="{ '--score': `${platform.score}%` }"></i></div>
                     </div>
-                    <p>Current Network is Applicable to This Platform</p>
+                    <p>{{ t('platform.applicable') }}</p>
                   </div>
                 </article>
                 <img
@@ -591,10 +662,10 @@ function stopInfoTableDrag(event: PointerEvent) {
           </Transition>
 
           <div class="metric-grid">
-            <div><strong>12</strong><span>Signals analyzed</span></div>
-            <div><strong>Live</strong><span>IPLocate intelligence</span></div>
-            <div><strong>8</strong><span>Platforms evaluated</span></div>
-            <div><strong>1</strong><span>AI analysis pass</span></div>
+            <div><strong>12</strong><span>{{ t('metrics.signals') }}</span></div>
+            <div><strong>{{ t('metrics.live') }}</strong><span>{{ t('metrics.iplocate') }}</span></div>
+            <div><strong>8</strong><span>{{ t('metrics.platforms') }}</span></div>
+            <div><strong>1</strong><span>{{ t('metrics.aiPass') }}</span></div>
           </div>
         </div>
         </section>
@@ -602,53 +673,53 @@ function stopInfoTableDrag(event: PointerEvent) {
         <section class="information section-panel" id="information">
           <div class="information-inner">
         <div class="section-head">
-          <p class="section-index"><span>1</span>Basic Information</p>
-          <h2>Network &amp; Device Information</h2>
-          <p>Information without traces makes your internet browsing safer</p>
+          <p class="section-index"><span>1</span>{{ t('info.index') }}</p>
+          <h2>{{ t('info.title') }}</h2>
+          <p>{{ t('info.subtitle') }}</p>
         </div>
 
         <div class="device-card-grid" aria-label="Network and device details" @click="copyDeviceValue">
           <article class="device-info-card">
-            <h3><img class="device-card-icon" src="/assets/figma/icon-location.png" alt="" />Location</h3>
+            <h3><img class="device-card-icon" src="/assets/figma/icon-location.png" alt="" />{{ t('info.location') }}</h3>
             <dl>
-              <div><dt>Country</dt><dd><span class="country-value"><img v-if="countryFlag" class="country-flag-icon" :src="countryFlag" alt="" />{{ countryName }}</span></dd></div>
-              <div><dt>State</dt><dd>{{ scan?.region || 'N/A' }}</dd></div>
-              <div><dt>City</dt><dd>{{ scan?.city || 'N/A' }}</dd></div>
-              <div><dt>Hostname</dt><dd>{{ scan?.host || 'N/A' }}</dd></div>
-              <div><dt>Postal Code</dt><dd>{{ scan?.zip_code || 'N/A' }}</dd></div>
-              <div><dt>Coordinates</dt><dd class="accent-value">{{ coordinates }}</dd></div>
-              <div><dt>ISP</dt><dd>{{ scan?.ISP || 'N/A' }}</dd></div>
-              <div><dt>Organization</dt><dd>{{ scan?.organization || 'N/A' }}</dd></div>
-              <div><dt>Connection</dt><dd>{{ scan?.connection_type || 'N/A' }}</dd></div>
-              <div><dt>ASN</dt><dd class="accent-value">{{ scan?.ASN ? `AS${scan.ASN}` : 'N/A' }}</dd></div>
+              <div><dt>{{ t('info.country') }}</dt><dd :class="{ copyable: hasScanValue(scan?.country_code) }"><span class="country-value"><img v-if="countryFlag" class="country-flag-icon" :src="countryFlag" alt="" />{{ countryName }}</span></dd></div>
+              <div><dt>{{ t('info.state') }}</dt><dd :class="{ copyable: hasScanValue(scan?.region) }">{{ scan?.region || t('misc.na') }}</dd></div>
+              <div><dt>{{ t('info.city') }}</dt><dd :class="{ copyable: hasScanValue(scan?.city) }">{{ scan?.city || t('misc.na') }}</dd></div>
+              <div><dt>{{ t('info.hostname') }}</dt><dd :class="{ copyable: hasScanValue(scan?.host) }">{{ scan?.host || t('misc.na') }}</dd></div>
+              <div><dt>{{ t('info.postalCode') }}</dt><dd :class="{ copyable: hasScanValue(scan?.zip_code) }">{{ scan?.zip_code || t('misc.na') }}</dd></div>
+              <div><dt>{{ t('info.coordinates') }}</dt><dd :class="{ copyable: coordinates !== t('misc.na') }" class="accent-value">{{ coordinates }}</dd></div>
+              <div><dt>{{ t('info.isp') }}</dt><dd :class="{ copyable: hasScanValue(scan?.ISP) }">{{ scan?.ISP || t('misc.na') }}</dd></div>
+              <div><dt>{{ t('info.organization') }}</dt><dd :class="{ copyable: hasScanValue(scan?.organization) }">{{ scan?.organization || t('misc.na') }}</dd></div>
+              <div><dt>{{ t('info.connection') }}</dt><dd :class="{ copyable: hasScanValue(scan?.connection_type) }">{{ scan?.connection_type || t('misc.na') }}</dd></div>
+              <div><dt>{{ t('info.asn') }}</dt><dd :class="{ copyable: hasScanValue(scan?.ASN) }" class="accent-value">{{ scan?.ASN ? `AS${scan.ASN}` : t('misc.na') }}</dd></div>
             </dl>
           </article>
 
           <article class="device-info-card">
-            <h3><img class="device-card-icon" src="/assets/figma/icon-time.png" alt="" />Time</h3>
+            <h3><img class="device-card-icon" src="/assets/figma/icon-time.png" alt="" />{{ t('info.time') }}</h3>
             <dl>
-              <div><dt>Time Zone</dt><dd>{{ scan?.timezone || 'N/A' }}</dd></div>
-              <div><dt>IP Local Time</dt><dd>{{ localTime }}</dd></div>
-              <div><dt>System Time</dt><dd>{{ currentTime.toString() }}</dd></div>
+              <div><dt>{{ t('info.timezone') }}</dt><dd :class="{ copyable: hasScanValue(scan?.timezone) }">{{ scan?.timezone || t('misc.na') }}</dd></div>
+              <div><dt>{{ t('info.ipLocalTime') }}</dt><dd :class="{ copyable: localTime !== t('misc.na') }">{{ localTime }}</dd></div>
+              <div><dt>{{ t('info.systemTime') }}</dt><dd class="copyable">{{ currentTime.toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US') }}</dd></div>
             </dl>
           </article>
 
           <article class="device-info-card">
-            <h3><img class="device-card-icon" src="/assets/figma/icon-browser.png" alt="" />Browser</h3>
+            <h3><img class="device-card-icon" src="/assets/figma/icon-browser.png" alt="" />{{ t('info.browser') }}</h3>
             <dl>
-              <div><dt>User Agent</dt><dd>{{ userAgent }}</dd></div>
-              <div><dt>Detected Browser</dt><dd>{{ scan?.browser || 'N/A' }}</dd></div>
-              <div><dt>Operating System</dt><dd>{{ scan?.operating_system || 'N/A' }}</dd></div>
-              <div><dt>Device</dt><dd>{{ [scan?.device_brand, scan?.device_model].filter(Boolean).join(' ') || 'N/A' }}</dd></div>
+              <div><dt>{{ t('info.userAgent') }}</dt><dd class="copyable">{{ userAgent }}</dd></div>
+              <div><dt>{{ t('info.detectedBrowser') }}</dt><dd :class="{ copyable: hasScanValue(scan?.browser) }">{{ scan?.browser || t('misc.na') }}</dd></div>
+              <div><dt>{{ t('info.os') }}</dt><dd :class="{ copyable: hasScanValue(scan?.operating_system) }">{{ scan?.operating_system || t('misc.na') }}</dd></div>
+              <div><dt>{{ t('info.device') }}</dt><dd :class="{ copyable: hasScanValue(scan?.device_brand) || hasScanValue(scan?.device_model) }">{{ [scan?.device_brand, scan?.device_model].filter(Boolean).join(' ') || t('misc.na') }}</dd></div>
             </dl>
           </article>
         </div>
 
         <div class="status-grid">
-          <article><strong>{{ scan?.proxy ? 'Detected' : 'Not Detected' }}</strong><span>Proxy</span></article>
-          <article><strong>{{ scan?.vpn || scan?.tor ? 'Detected' : 'Not Detected' }}</strong><span>VPN / Tor</span></article>
-          <article><strong>{{ scan?.recent_abuse ? 'Detected' : 'Not Detected' }}</strong><span>Recent Abuse</span></article>
-          <article class="risk-card"><em :class="`risk-${riskLevel}`">{{ riskLabel }}</em><strong>{{ scan ? riskScore : '—' }} / 100</strong><span>Risk Score</span></article>
+          <article><strong>{{ scan?.proxy ? t('status.detected') : t('status.notDetected') }}</strong><span>{{ t('status.proxy') }}</span></article>
+          <article><strong>{{ scan?.vpn || scan?.tor ? t('status.detected') : t('status.notDetected') }}</strong><span>{{ t('status.vpnTor') }}</span></article>
+          <article><strong>{{ scan?.recent_abuse ? t('status.detected') : t('status.notDetected') }}</strong><span>{{ t('status.recentAbuse') }}</span></article>
+          <article class="risk-card"><em :class="scan ? `risk-${riskLevel}` : 'detecting'">{{ scan ? riskLabel : t('status.detecting') }}</em><strong>{{ scan ? riskScore : '--' }} / 100</strong><span>{{ t('status.riskScore') }}</span></article>
         </div>
           </div>
         </section>
@@ -660,25 +731,25 @@ function stopInfoTableDrag(event: PointerEvent) {
           <div class="faq-motion-wash"></div>
         </div>
         <div class="faq-card">
-          <h2>Frequently Asked Questions</h2>
+          <h2>{{ t('faq.title') }}</h2>
           <div class="faq-list">
             <article class="faq-item" :class="{ active: activeFaq === 0 }">
-              <button type="button" :aria-expanded="activeFaq === 0" @click="activeFaq = activeFaq === 0 ? -1 : 0"><span>What does IP-Ready check?</span><CurrentIcon class="faq-toggle-icon faq-plus-icon" src="/assets/figma/imgVector.svg" /></button>
-              <div class="faq-answer"><p>IP-Ready analyzes your public IP, location, ISP, ASN, DNS, network type, proxy and blacklist signals, browser, and device details. It combines these signals into an AI IP Score and a practical platform-readiness report.</p></div>
+              <button type="button" :aria-expanded="activeFaq === 0" @click="activeFaq = activeFaq === 0 ? -1 : 0"><span>{{ t('faq.q1') }}</span><CurrentIcon class="faq-toggle-icon faq-plus-icon" src="/assets/figma/imgVector.svg" /></button>
+              <div class="faq-answer"><p>{{ t('faq.a1') }}</p></div>
             </article>
-            <article class="faq-item" :class="{ active: activeFaq === 1 }"><button type="button" :aria-expanded="activeFaq === 1" @click="activeFaq = activeFaq === 1 ? -1 : 1"><span>How is the platform readiness score calculated?</span><CurrentIcon class="faq-toggle-icon faq-plus-icon" src="/assets/figma/imgVector.svg" /></button><div class="faq-answer"><p>The score combines IP reputation, network type, location consistency, fraud signals, and known platform access patterns. It is a diagnostic estimate, not a guarantee that a third-party platform will approve an account or session.</p></div></article>
-            <article class="faq-item" :class="{ active: activeFaq === 2 }"><button type="button" :aria-expanded="activeFaq === 2" @click="activeFaq = activeFaq === 2 ? -1 : 2"><span>Is my IP address and browsing data private?</span><CurrentIcon class="faq-toggle-icon faq-plus-icon" src="/assets/figma/imgVector.svg" /></button><div class="faq-answer"><p>IP-Ready only uses the technical network and device signals needed to generate your report. It never asks for account passwords, private messages, or browsing history, and scan results are not designed to identify you personally.</p></div></article>
-            <article class="faq-item" :class="{ active: activeFaq === 3 }"><button type="button" :aria-expanded="activeFaq === 3" @click="activeFaq = activeFaq === 3 ? -1 : 3"><span>Which platforms can I check?</span><CurrentIcon class="faq-toggle-icon faq-plus-icon" src="/assets/figma/imgVector.svg" /></button><div class="faq-answer"><p>You can review readiness across popular AI, ecommerce, advertising, and social platforms, including ChatGPT, Claude, Amazon, eBay, Facebook, TikTok, and more. Supported platforms are expanded as new signals become available.</p></div></article>
-            <article class="faq-item" :class="{ active: activeFaq === 4 }"><button type="button" :aria-expanded="activeFaq === 4" @click="activeFaq = activeFaq === 4 ? -1 : 4"><span>Why can my scan results change?</span><CurrentIcon class="faq-toggle-icon faq-plus-icon" src="/assets/figma/imgVector.svg" /></button><div class="faq-answer"><p>IP reputation databases, routing, DNS, VPN endpoints, and blacklist records change over time. Run a new scan whenever you switch networks, proxies, VPN locations, or devices to see the most relevant result.</p></div></article>
+            <article class="faq-item" :class="{ active: activeFaq === 1 }"><button type="button" :aria-expanded="activeFaq === 1" @click="activeFaq = activeFaq === 1 ? -1 : 1"><span>{{ t('faq.q2') }}</span><CurrentIcon class="faq-toggle-icon faq-plus-icon" src="/assets/figma/imgVector.svg" /></button><div class="faq-answer"><p>{{ t('faq.a2') }}</p></div></article>
+            <article class="faq-item" :class="{ active: activeFaq === 2 }"><button type="button" :aria-expanded="activeFaq === 2" @click="activeFaq = activeFaq === 2 ? -1 : 2"><span>{{ t('faq.q3') }}</span><CurrentIcon class="faq-toggle-icon faq-plus-icon" src="/assets/figma/imgVector.svg" /></button><div class="faq-answer"><p>{{ t('faq.a3') }}</p></div></article>
+            <article class="faq-item" :class="{ active: activeFaq === 3 }"><button type="button" :aria-expanded="activeFaq === 3" @click="activeFaq = activeFaq === 3 ? -1 : 3"><span>{{ t('faq.q4') }}</span><CurrentIcon class="faq-toggle-icon faq-plus-icon" src="/assets/figma/imgVector.svg" /></button><div class="faq-answer"><p>{{ t('faq.a4') }}</p></div></article>
+            <article class="faq-item" :class="{ active: activeFaq === 4 }"><button type="button" :aria-expanded="activeFaq === 4" @click="activeFaq = activeFaq === 4 ? -1 : 4"><span>{{ t('faq.q5') }}</span><CurrentIcon class="faq-toggle-icon faq-plus-icon" src="/assets/figma/imgVector.svg" /></button><div class="faq-answer"><p>{{ t('faq.a5') }}</p></div></article>
           </div>
         </div>
       </section>
 
       <section class="feature-row" aria-label="Product qualities" :style="{ '--feature-duration': `${featureDuration}ms` }">
-        <article :class="{ 'carousel-active': activeFeature === 0 }"><CurrentIcon class="feature-icon feature-icon-shield" src="/assets/figma/imgSubtract.svg" /><b>Professional and Reliable</b><i></i></article>
-        <article :class="{ 'carousel-active': activeFeature === 1 }"><span class="feature-icon feature-icon-efficient" aria-hidden="true"><CurrentIcon class="efficient-back" src="/assets/figma/imgVector40.svg" /><CurrentIcon class="efficient-pen" src="/assets/figma/imgVector41.svg" /><CurrentIcon class="efficient-device" src="/assets/figma/imgSubtract1.svg" /></span><b>Efficient and Convenient</b><i></i></article>
-        <article :class="{ 'carousel-active': activeFeature === 2 }"><CurrentIcon class="feature-icon feature-icon-target" src="/assets/figma/imgVector42.svg" /><b>Accurate Data</b><i></i></article>
-        <article :class="{ 'carousel-active': activeFeature === 3 }"><CurrentIcon class="feature-icon feature-icon-aperture" src="/assets/figma/imgVector43.svg" /><b>Safe and Stable</b><i></i></article>
+        <article :class="{ 'carousel-active': activeFeature === 0 }"><CurrentIcon class="feature-icon feature-icon-shield" src="/assets/figma/imgSubtract.svg" /><b>{{ t('feature.reliable') }}</b><i></i></article>
+        <article :class="{ 'carousel-active': activeFeature === 1 }"><span class="feature-icon feature-icon-efficient" aria-hidden="true"><CurrentIcon class="efficient-back" src="/assets/figma/imgVector40.svg" /><CurrentIcon class="efficient-pen" src="/assets/figma/imgVector41.svg" /><CurrentIcon class="efficient-device" src="/assets/figma/imgSubtract1.svg" /></span><b>{{ t('feature.efficient') }}</b><i></i></article>
+        <article :class="{ 'carousel-active': activeFeature === 2 }"><CurrentIcon class="feature-icon feature-icon-target" src="/assets/figma/imgVector42.svg" /><b>{{ t('feature.accurate') }}</b><i></i></article>
+        <article :class="{ 'carousel-active': activeFeature === 3 }"><CurrentIcon class="feature-icon feature-icon-aperture" src="/assets/figma/imgVector43.svg" /><b>{{ t('feature.stable') }}</b><i></i></article>
       </section>
     </main>
 

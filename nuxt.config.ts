@@ -1,12 +1,23 @@
+import tailwindcss from '@tailwindcss/vite'
+
 export default defineNuxtConfig({
   compatibilityDate: '2026-08-01',
   devtools: { enabled: false },
-  css: ['~/assets/css/main.css'],
+  devServer: { host: '0.0.0.0' },
+  css: ['~/assets/css/tailwind.css', '~/assets/css/main.css'],
+  components: [
+    { path: '~/components', ignore: ['**/index.ts'] },
+  ],
+  vite: {
+    plugins: [tailwindcss()],
+  },
   runtimeConfig: {
     deepseekApiKey: '',
     deepseekBaseUrl: 'https://api.deepseek.com',
     ipqsApiKey: '',
     iplocateApiKey: '',
+    adminPassword: '',
+    adminSecret: '',
   },
   app: {
     head: {

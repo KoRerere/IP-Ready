@@ -1,6 +1,15 @@
 <script setup lang="ts">
 import createGlobe, { type COBEOptions } from 'cobe'
 
+const props = defineProps<{ tint?: 'green' | 'blue' }>()
+
+// 配色整体都很浅；blue 供 /check 页蓝色主题使用
+const palettes = {
+  green: { base: [248 / 255, 253 / 255, 249 / 255], glow: [1, 1, 1], marker: [0.08, 0.72, 0.28] },
+  blue: { base: [206 / 255, 226 / 255, 250 / 255], glow: [0.87, 0.93, 1], marker: [0.18, 0.49, 0.85] },
+} as const
+const palette = palettes[props.tint ?? 'green']
+
 const canvas = ref<HTMLCanvasElement | null>(null)
 let globe: ReturnType<typeof createGlobe> | undefined
 let resizeObserver: ResizeObserver | undefined
@@ -23,9 +32,9 @@ const globeConfig: COBEOptions = {
   mapSamples: 16000,
   mapBrightness: 1.2,
   mapBaseBrightness: 0.02,
-  baseColor: [248 / 255, 253 / 255, 249 / 255],
-  markerColor: [0.08, 0.72, 0.28],
-  glowColor: [1, 1, 1],
+  baseColor: [...palette.base] as COBEOptions['baseColor'],
+  markerColor: [...palette.marker] as COBEOptions['markerColor'],
+  glowColor: [...palette.glow] as COBEOptions['glowColor'],
   opacity: 0.88,
   scale: 1,
   markers: [],

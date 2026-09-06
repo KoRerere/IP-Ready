@@ -33,7 +33,7 @@ onBeforeUnmount(() => footerObserver?.disconnect())
         <div>
           <h3>{{ t('footer.platform') }}</h3>
           <a href="#top">{{ t('nav.checkAnother') }}</a>
-          <a href="#readiness">{{ t('nav.batchCheck') }}</a>
+          <a href="/batch-check">{{ t('nav.batchCheck') }}</a>
           <a href="#readiness">{{ t('footer.platformReadiness') }}</a>
         </div>
         <div>

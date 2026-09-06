@@ -280,6 +280,7 @@ onMounted(() => {
           <div class="quick-platforms">
             <div><span><span class="quick-icon"><img class="simple-glyph" src="/assets/icons/platform/IP_ic_claude.svg" alt="" /></span>Claude</span><b>{{ quickRead }}</b></div>
             <div><span><span class="quick-icon"><img class="simple-glyph" src="/assets/icons/platform/IP_ic_chatgpt.svg" alt="" /></span>ChatGPT</span><b>{{ quickRead }}</b></div>
+            <div><span><span class="quick-icon"><img class="simple-glyph" src="/assets/icons/platform/IP_ic_gemini.svg" alt="" /></span>Gemini</span><b>{{ quickRead }}</b></div>
             <div><span><span class="quick-icon"><img class="simple-glyph" src="/assets/icons/platform/IP_ic_Amazon.svg" alt="" /></span>Amazon</span><b>{{ quickRead }}</b></div>
             <div><span><span class="quick-icon"><img class="simple-glyph" src="/assets/icons/platform/IP_ic_tiktok_shop.svg" alt="" /></span>Tiktok Shop</span><b>{{ quickRead }}</b></div>
           </div>
@@ -361,7 +362,7 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.check-shell { height: auto; min-height: 560px; padding-bottom: 0; }
+.check-shell { height: auto; min-height: 920px; padding-bottom: 0; }
 /* 复刻 wrangle.ai 的蓝色渐变动画背景 */
 .check-shell .gradient-label { background: linear-gradient(94deg, #2f7fe8 0%, #35b1d8 25%, #6ad9e8 50%, #2f7fe8 75%, #35b1d8 100%); background-size: 260% 100%; background-position: 100% 50%; -webkit-background-clip: text; background-clip: text; }
 .check-hero-motion { background: linear-gradient(180deg, #ffffff 10%, #f2f7fc 48%, #e7f0fa 100%); overflow: hidden; }
@@ -395,7 +396,7 @@ onMounted(() => {
 /* /check 页脚 logo 字改为蓝色主题 */
 :deep(.footer-wordmark p) { background: linear-gradient(103.14deg, #5c9dee 0%, #9cc3f2 38%, #6ad9e8 68%, #8fc6ee 100%); -webkit-background-clip: text; background-clip: text; }
 .check-shell.has-result { min-height: 980px; padding-bottom: 120px; }
-.check-shell .hero-copy { position: relative; top: 0; left: auto; transform: none; margin: 0 auto; padding-top: 96px; max-width: 1066px; width: calc(100% - 100px); }
+.check-shell .hero-copy { position: relative; top: 0; left: auto; transform: none; margin: 0 auto; padding-top: 140px; max-width: 1066px; width: calc(100% - 100px); }
 .check-shell .ip-report { position: relative; top: auto; left: auto; translate: none; margin: 56px auto 0; }
 /* 无结果时占位卡片底部溢出被裁切，跟首页一致 */
 .check-shell:not(.has-result) .ip-report { margin-bottom: -40px; }

@@ -56,7 +56,7 @@ onUnmounted(() => {
       <nav class="desktop-nav" aria-label="Primary navigation" @mouseleave="hideNavPill">
         <span class="nav-morph-pill" :class="{ visible: navPill.visible, snap: navPill.snap }" :style="{ transform: `translate(${navPill.x}px, -50%)`, width: `${navPill.w}px` }" aria-hidden="true"></span>
         <a href="/check" @mouseenter="moveNavPill" @focus="moveNavPill" @click="menuOpen = false">{{ t('nav.checkAnother') }}</a>
-        <a href="/#readiness" @mouseenter="moveNavPill" @focus="moveNavPill" @click="menuOpen = false">{{ t('nav.batchCheck') }}</a>
+        <a href="/batch-check" @mouseenter="moveNavPill" @focus="moveNavPill" @click="menuOpen = false">{{ t('nav.batchCheck') }}</a>
         <a href="/#information" @mouseenter="moveNavPill" @focus="moveNavPill" @click="menuOpen = false">{{ t('nav.resources') }}</a>
         <a href="/blog" @mouseenter="moveNavPill" @focus="moveNavPill" @click="menuOpen = false">{{ t('nav.blog') }}</a>
         <!-- Partners 暂时隐藏，需要时取消注释即可 -->

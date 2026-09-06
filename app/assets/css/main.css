@@ -158,7 +158,7 @@ main { min-height: 0; }
   backdrop-filter: blur(12px);
   box-shadow: 0 32px 80px rgba(31,63,104,.16);
 }
-.report-frame { display: grid; height: 496px; grid-template-columns: 739px 325px; overflow: hidden; border: 1px solid rgba(255,255,255,.6); border-radius: 12px; background: #fff; }
+.report-frame { display: grid; height: 544px; grid-template-columns: 739px 325px; overflow: hidden; border: 1px solid rgba(255,255,255,.6); border-radius: 12px; background: #fff; }
 .report-main { position: relative; overflow: hidden; background: #fff; }
 .report-map { position: absolute; top: 13px; left: 335px; width: 462px; height: 204px; overflow: hidden; opacity: 1; }
 .interactive-globe { position: absolute; top: 0; left: 54%; display: block; width: min(100%, 430px); height: auto; aspect-ratio: 1; opacity: 0; transform: translateX(-50%); cursor: grab; touch-action: none; contain: layout paint size; transition: opacity .5s ease; }
@@ -198,7 +198,7 @@ main { min-height: 0; }
 .analysis-checks span { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; font-weight: 500; white-space: nowrap; }
 .analysis-check-icon { width: 12px; height: 9px; color: #15be53; }
 
-.score-panel { height: 494px; padding: 20px; background: #f4f7fb; }
+.score-panel { height: 542px; padding: 20px; background: #f4f7fb; }
 .score-label, .platform-label { margin: 0; font-size: 13px; font-weight: 500; line-height: 16px; }
 .score-value { display: flex; align-items: flex-end; gap: 8px; margin-top: 8px; }
 .score-value strong { color: #12b84f; font-family: "JetBrains Mono", monospace; font-size: 54px; line-height: 56px; }

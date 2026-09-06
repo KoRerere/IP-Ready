@@ -586,6 +586,7 @@ function stopInfoTableDrag(event: PointerEvent) {
             <div class="quick-platforms">
               <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_claude.svg')" alt="" /></span>Claude</span><b>{{ t('report.good') }}</b></div>
               <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_chatgpt.svg')" alt="" /></span>ChatGPT</span><b>{{ t('report.good') }}</b></div>
+              <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_gemini.svg')" alt="" /></span>Gemini</span><b>{{ t('report.good') }}</b></div>
               <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_Amazon.svg')" alt="" /></span>Amazon</span><b>{{ t('report.good') }}</b></div>
               <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_tiktok_shop.svg')" alt="" /></span>Tiktok Shop</span><b>{{ t('report.good') }}</b></div>
             </div>

@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 416" role="img" aria-label="A clean low-risk score on a green aurora">
+  <defs>
+    <pattern id="lf-dots" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="1.6" cy="1.6" r="1.6" fill="rgba(23,23,23,.05)"/>
+    </pattern>
+    <linearGradient id="lf-base" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7be3a2"/>
+      <stop offset="1" stop-color="#5fc9d8"/>
+    </linearGradient>
+    <radialGradient id="lf-a"><stop offset="0" stop-color="#2fc46f" stop-opacity=".8"/><stop offset="1" stop-color="#2fc46f" stop-opacity="0"/></radialGradient>
+    <radialGradient id="lf-b"><stop offset="0" stop-color="#4fc3e8" stop-opacity=".7"/><stop offset="1" stop-color="#4fc3e8" stop-opacity="0"/></radialGradient>
+    <radialGradient id="lf-c"><stop offset="0" stop-color="#d6ff8f" stop-opacity=".6"/><stop offset="1" stop-color="#d6ff8f" stop-opacity="0"/></radialGradient>
+    <filter id="lf-soft" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="52"/></filter>
+    <clipPath id="lf-clip"><rect x="22" y="22" width="576" height="372" rx="18"/></clipPath>
+  </defs>
+
+  <rect width="620" height="416" fill="#fbfcfb"/>
+  <rect width="620" height="416" fill="url(#lf-dots)"/>
+
+  <rect x="22" y="22" width="576" height="372" rx="18" fill="url(#lf-base)"/>
+  <g clip-path="url(#lf-clip)">
+    <g filter="url(#lf-soft)">
+      <ellipse cx="150" cy="320" rx="220" ry="150" fill="url(#lf-a)"/>
+      <ellipse cx="500" cy="90" rx="200" ry="140" fill="url(#lf-b)"/>
+      <ellipse cx="480" cy="330" rx="170" ry="120" fill="url(#lf-c)"/>
+    </g>
+
+    <g fill="none" stroke="#fff" stroke-linecap="round">
+      <path d="M196 258a114 114 0 0 1 228 0" stroke-width="26" opacity=".22"/>
+      <path d="M196 258a114 114 0 0 1 34-81" stroke-width="26"/>
+      <path d="M160 258h-16M490 258h16M225 165l-11-11M475 165l11-11M340 128v-16" stroke-width="3" opacity=".6"/>
+      <path d="M340 258l-62-44" stroke-width="7"/>
+    </g>
+    <circle cx="340" cy="258" r="13" fill="#fff"/>
+    <circle cx="340" cy="258" r="5" fill="#2fc46f"/>
+    <text x="340" y="326" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" font-size="30" font-weight="700" letter-spacing="3" fill="#fff">LOW</text>
+
+    <g fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round">
+      <path d="M60 100c70 16 130 10 180-14" stroke-dasharray="2 10"/>
+      <path d="M420 330c56 10 112 6 160-14" stroke-dasharray="2 10"/>
+    </g>
+    <g fill="#fff">
+      <circle cx="60" cy="100" r="5"/><circle cx="560" cy="330" r="5"/><circle cx="536" cy="76" r="4"/><circle cx="90" cy="330" r="4"/>
+    </g>
+  </g>
+
+  <g>
+    <rect x="470" y="352" width="118" height="40" rx="12" fill="#fff" stroke="#ececec" stroke-width="1.5"/>
+    <circle cx="492" cy="372" r="8" fill="none" stroke="#171717" stroke-width="2.4"/>
+    <circle cx="492" cy="372" r="3" fill="#171717"/>
+    <text x="508" y="377" font-family="Inter, -apple-system, sans-serif" font-size="15" font-weight="700" fill="#171717">IP Ready</text>
+  </g>
+</svg>

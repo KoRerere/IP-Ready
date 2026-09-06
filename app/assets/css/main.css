@@ -264,6 +264,9 @@ main { min-height: 0; }
 .platform-brand-icon .binance-leaf,
 .platform-brand-icon .fallback-leaf { inset: 0; width: 18px; height: 18px; object-fit: contain; }
 .platform-name .check-icon { width: 20px; height: 20px; color: #27A64A; -webkit-mask-size: 18.333px 11.25px; mask-size: 18.333px 11.25px; }
+.platform-name .platform-flag { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; flex: 0 0 auto; border-radius: 50%; color: #fff; font-size: 12px; font-weight: 700; line-height: 1; }
+.platform-name .platform-flag.caution { background: #E8A13C; }
+.platform-name .platform-flag.risky { background: #D64545; }
 .brand-glyph { position: relative; display: block; width: 18px; height: 18px; flex: 0 0 auto; overflow: hidden; }
 .brand-glyph > img { position: absolute; display: block; width: auto; height: auto; max-width: none; object-fit: fill; }
 .amazon-glyph > img:nth-child(1) { inset: 12.29% 23.99% 30.46% 27.04%; width: 48.97%; height: 57.25%; }
@@ -651,7 +654,7 @@ main { min-height: 0; }
 }
 .blog-hero-copy { max-width: 500px; }
 .blog-kicker { margin: 0; color: var(--muted-ink); font-size: 15px; font-weight: 400; line-height: 1.5; }
-.blog-hero-title { margin: 16px 0 0; color: #4a4a4a; font-family: Geist, Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; font-size: 52px; font-weight: 500; line-height: 1.05; letter-spacing: -.035em; text-wrap: balance; }
+.blog-hero-title { margin: 16px 0 0; color: #4a4a4a; font-family: Geist, Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; font-size: 52px; font-weight: 500; line-height: 1.05; letter-spacing: -.035em; white-space: pre-line; }
 .blog-hero-sub { margin: 20px 0 0; max-width: 480px; color: var(--muted-ink); font-size: 16px; line-height: 1.6; text-wrap: pretty; }
 .blog-signup { display: flex; gap: 8px; align-items: center; margin-top: 28px; }
 .blog-email { flex: 1 1 auto; min-width: 0; height: 40px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); font-size: 14px; }

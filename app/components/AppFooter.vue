@@ -51,14 +51,15 @@ onBeforeUnmount(() => footerObserver?.disconnect())
         </div>
         <div>
           <h3>{{ t('footer.resources') }}</h3>
-          <a href="/#information">{{ t('footer.resources') }}</a>
-          <a href="#faq">{{ t('nav.blog') }}</a>
+          <a href="/resources">{{ t('footer.resources') }}</a>
+          <a href="/blog">{{ t('nav.blog') }}</a>
           <a href="#faq">{{ t('footer.faq') }}</a>
         </div>
         <div>
           <h3>{{ t('footer.company') }}</h3>
           <a href="#faq">{{ t('nav.partners') }}</a>
-          <a href="mailto:hello@ip-ready.example">{{ t('nav.contact') }}</a>
+          <!-- Contact us 暂时隐藏，需要时取消注释即可 -->
+          <!-- <a href="mailto:hello@ip-ready.example">{{ t('nav.contact') }}</a> -->
         </div>
       </div>
       <div ref="footerBottom" class="footer-bottom reveal">

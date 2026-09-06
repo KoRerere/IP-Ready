@@ -47,7 +47,7 @@ const textareaEl = ref<HTMLTextAreaElement | null>(null)
 let revealObserver: IntersectionObserver | undefined
 
 // 占位符打字机动画（wrangle hero 同款效果）：逐字打出示例文案，停顿后删除换下一条
-const PHRASE_KEYS = ['batch.placeholder', 'batch.phrase2', 'batch.phrase3']
+const PHRASE_KEYS = ['batch.placeholder', 'batch.phrase2', 'batch.phrase3', 'batch.phrase4']
 const placeholderText = ref('')
 let phraseIndex = 0
 let charIndex = 0
@@ -107,29 +107,40 @@ const sampleIps = [
   { ip: '212.58.246.79', code: 'GB' },
 ]
 
-function looksValidIp(value: string) {
-  const ipv4 = value.split('.')
-  if (ipv4.length === 4 && ipv4.every((part) => /^\d{1,3}$/.test(part) && Number(part) <= 255)) return true
-  return value.includes(':') && /^[0-9a-f:]+$/i.test(value)
+// 从一行任意文本中提取第一个有效 IP：支持纯 IP、ip:port、ip:port:user:pass 代理串、user:pass@ip:port 等
+const IPV4_PATTERN = /(?<![\d.])((?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?!\d)/
+const IPV6_PATTERN = /(?<![0-9A-Fa-f:])((?:[0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4}|(?:[0-9A-Fa-f]{1,4}:){1,7}:|(?:[0-9A-Fa-f]{1,4}:){1,6}:[0-9A-Fa-f]{1,4}|(?:[0-9A-Fa-f]{1,4}:){1,5}(?::[0-9A-Fa-f]{1,4}){1,2}|(?:[0-9A-Fa-f]{1,4}:){1,4}(?::[0-9A-Fa-f]{1,4}){1,3}|(?:[0-9A-Fa-f]{1,4}:){1,3}(?::[0-9A-Fa-f]{1,4}){1,4}|(?:[0-9A-Fa-f]{1,4}:){1,2}(?::[0-9A-Fa-f]{1,4}){1,5}|[0-9A-Fa-f]{1,4}:(?::[0-9A-Fa-f]{1,4}){1,6})(?![0-9A-Fa-f:])/
+
+function extractIp(line: string) {
+  return line.match(IPV4_PATTERN)?.[0] ?? line.match(IPV6_PATTERN)?.[0] ?? undefined
 }
 
-// 输入框里的原始内容 → 去重后的 IP 列表（保持输入顺序）
-const ipList = computed(() => {
-  const seen = new Set<string>()
-  const list: string[] = []
-  for (const token of rawInput.value.split(/[\s,;，；]+/)) {
-    const value = token.trim()
-    if (!value || seen.has(value)) continue
-    seen.add(value)
-    list.push(value)
+interface ParsedEntry {
+  raw: string
+  ip?: string
+}
+
+// 按行解析：输入框保留用户粘贴的原始内容，每行提取出的 IP 才是送去检测的对象（按 IP 去重）
+const parsedEntries = computed<ParsedEntry[]>(() => {
+  const entries: ParsedEntry[] = []
+  const seenIps = new Set<string>()
+  for (const line of rawInput.value.split(/\r?\n/)) {
+    const raw = line.trim()
+    if (!raw) continue
+    const ip = extractIp(raw)
+    if (ip) {
+      if (seenIps.has(ip)) continue
+      seenIps.add(ip)
+    }
+    entries.push({ raw, ip })
   }
-  return list
+  return entries
 })
 
-const invalidList = computed(() => ipList.value.filter((value) => !looksValidIp(value)))
-const overLimit = computed(() => ipList.value.length > MAX_BATCH_IPS)
-const submitList = computed(() => ipList.value.filter(looksValidIp).slice(0, MAX_BATCH_IPS))
-const counterLabel = computed(() => t('batch.counter').replace('{n}', String(Math.min(ipList.value.length, MAX_BATCH_IPS))))
+const invalidCount = computed(() => parsedEntries.value.filter((entry) => !entry.ip).length)
+const overLimit = computed(() => parsedEntries.value.filter((entry) => entry.ip).length > MAX_BATCH_IPS)
+const submitList = computed(() => parsedEntries.value.filter((entry) => entry.ip).map((entry) => entry.ip!).slice(0, MAX_BATCH_IPS))
+const counterLabel = computed(() => t('batch.counter').replace('{n}', String(Math.min(submitList.value.length, MAX_BATCH_IPS))))
 
 const scanningLabel = computed(() => t('batch.scanningN').replace('{n}', String(scanningCount.value)))
 
@@ -180,7 +191,7 @@ function signalChips(entry: IpScanResult) {
 }
 
 function addSampleIp(ip: string) {
-  if (ipList.value.includes(ip)) return
+  if (submitList.value.includes(ip)) return
   rawInput.value = rawInput.value.trimEnd()
   if (rawInput.value) rawInput.value += '\n'
   rawInput.value += ip
@@ -198,12 +209,29 @@ async function pasteFromClipboard() {
   }
 }
 
-// wrangle 的输入框会随内容自动增高，这里限制在 80px–208px 之间
+// wrangle 的做法：textarea 本身随内容无限长高（overflow hidden），滚动发生在外层
+// max-height 包裹层上，滚动条因此贴在卡片右缘；上下边缘用 mask 渐隐提示还有内容
+const textareaWrapEl = ref<HTMLDivElement | null>(null)
+
 function autosizeTextarea() {
   const el = textareaEl.value
   if (!el) return
   el.style.height = 'auto'
-  el.style.height = `${Math.min(Math.max(el.scrollHeight, 80), 208)}px`
+  el.style.height = `${Math.max(el.scrollHeight, 80)}px`
+  nextTick(updateTextareaMask)
+}
+
+function updateTextareaMask() {
+  const el = textareaWrapEl.value
+  if (!el) return
+  const fade = 28
+  const canTop = el.scrollTop > 4
+  const canBottom = el.scrollTop + el.clientHeight < el.scrollHeight - 4
+  const top = canTop ? `transparent 0, #000 ${fade}px` : `#000 0`
+  const bottom = canBottom ? `#000 calc(100% - ${fade}px), transparent 100%` : `#000 100%`
+  const mask = `linear-gradient(to bottom, ${top}, ${bottom})`
+  el.style.maskImage = mask
+  el.style.webkitMaskImage = mask
 }
 
 watch(rawInput, () => nextTick(autosizeTextarea))
@@ -211,7 +239,7 @@ watch(rawInput, () => nextTick(autosizeTextarea))
 async function submitBatch() {
   if (pending.value) return
   // 空输入 / 全部无效时用 toast 提示，不再展示红色文字块
-  if (!ipList.value.length) {
+  if (!parsedEntries.value.length) {
     showToast(t('batch.empty'))
     return
   }
@@ -219,7 +247,7 @@ async function submitBatch() {
     showToast(t('check.invalid'))
     return
   }
-  if (invalidList.value.length) showToast(t('batch.skippedN').replace('{n}', String(invalidList.value.length)))
+  if (invalidCount.value) showToast(t('batch.skippedN').replace('{n}', String(invalidCount.value)))
   else if (overLimit.value) showToast(t('batch.maxNote'))
 
   pending.value = true
@@ -231,6 +259,7 @@ async function submitBatch() {
     router.replace({ query: { ips: submitList.value.join(',') } })
     await nextTick()
     observeReveals()
+    syncTabsPill()
     document.getElementById('batch-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   } catch (error) {
     const apiError = error as { data?: { statusMessage?: string }; message?: string }
@@ -245,13 +274,99 @@ function backToComposer() {
   document.querySelector<HTMLTextAreaElement>('.batch-textarea')?.focus()
 }
 
+// 表格行悬停的滑动胶囊（与导航/标签页的 morph pill 同款）
+const tablePill = reactive({ x: 0, y: 0, w: 0, h: 0, visible: false, snap: false })
+
+function moveTablePill(event: Event) {
+  const row = event.currentTarget as HTMLElement
+  const card = row.closest('.batch-table-card') as HTMLElement | null
+  if (!card) return
+  const cardRect = card.getBoundingClientRect()
+  const rowRect = row.getBoundingClientRect()
+  // 完整贴边：不内缩、无圆角，只保留滑动动画
+  tablePill.x = rowRect.left - cardRect.left
+  tablePill.y = rowRect.top - cardRect.top
+  tablePill.w = rowRect.width
+  tablePill.h = rowRect.height
+  if (!tablePill.visible) {
+    // 首次出现直接就位，不播放滑入动画
+    tablePill.snap = true
+    requestAnimationFrame(() => requestAnimationFrame(() => { tablePill.snap = false }))
+  }
+  tablePill.visible = true
+}
+
+function hideTablePill() {
+  tablePill.visible = false
+}
+
+// 结果区 Tabs：基础检测 / 适用平台（胶囊滑动与首页标签页同款）
+type BatchTab = 'basic' | 'platforms'
+const activeTab = ref<BatchTab>('basic')
+const tabsEl = ref<HTMLElement | null>(null)
+const tabsPill = reactive({ x: 0, y: 0, w: 0, ready: false, snap: false })
+
+function syncTabsPill() {
+  const active = tabsEl.value?.querySelector('button.active') as HTMLElement | null
+  if (!active) return
+  tabsPill.x = active.offsetLeft
+  tabsPill.y = active.offsetTop
+  tabsPill.w = active.offsetWidth
+  if (!tabsPill.ready) {
+    tabsPill.snap = true
+    requestAnimationFrame(() => requestAnimationFrame(() => { tabsPill.snap = false }))
+  }
+  tabsPill.ready = true
+}
+
+function hoverTabPill(event: Event) {
+  const btn = event.currentTarget as HTMLElement
+  tabsPill.x = btn.offsetLeft
+  tabsPill.y = btn.offsetTop
+  tabsPill.w = btn.offsetWidth
+  tabsPill.ready = true
+}
+
+function selectTab(tab: BatchTab) {
+  if (activeTab.value === tab) return
+  activeTab.value = tab
+  hideTablePill()
+  nextTick(syncTabsPill)
+}
+
+// 适用平台评分：与首页同一组平台和基准分，按每个 IP 的健康分（100 - 风险分）偏移
+const BATCH_PLATFORMS = [
+  { name: 'Claude', base: 88, icon: '/assets/icons/platform/IP_ic_claude.svg' },
+  { name: 'ChatGPT', base: 88, icon: '/assets/icons/platform/IP_ic_chatgpt.svg' },
+  { name: 'Amazon', base: 95, icon: '/assets/icons/platform/IP_ic_Amazon.svg' },
+  { name: 'Ebay', base: 98, icon: '/assets/icons/platform/IP_ic_eBay.svg' },
+  { name: 'Binance', base: 76, icon: '/assets/icons/platform/IP_ic_Binance.svg' },
+]
+
+const okEntries = computed(() => (results.value ?? [])
+  .filter((entry): entry is BatchResultOk => entry.status === 'ok')
+  .map((entry) => ({ ip: entry.data.ip, risk: entry.data.risk_score, health: 100 - entry.data.risk_score })))
+
+function platformScore(base: number, health: number) {
+  return Math.min(99, Math.max(1, base + (health - 86)))
+}
+
+function scoreTone(score: number) {
+  return score >= 70 ? 'good' : score >= 40 ? 'warn' : 'bad'
+}
+
 function observeReveals() {
   if (!import.meta.client) return
   document.querySelectorAll('.reveal:not(.visible), .scroll-reveal-item:not(.visible)').forEach((element) => revealObserver?.observe(element))
 }
 
 useHead({
-  title: () => `${t('batch.label')} - IP Ready`,
+  title: () => t('batch.metaTitle'),
+  meta: [
+    { name: 'description', content: () => t('batch.metaDescription') },
+    { property: 'og:title', content: () => t('batch.metaTitle') },
+    { property: 'og:description', content: () => t('batch.metaDescription') },
+  ],
   link: [
     { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
     { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
@@ -277,6 +392,7 @@ onMounted(() => {
   observeReveals()
   autosizeTextarea()
   startPlaceholder()
+  window.addEventListener('resize', syncTabsPill)
 
   // 支持 /batch-check?ips=a,b,c 直接出结果
   if (typeof route.query.ips === 'string' && route.query.ips && submitList.value.length) void submitBatch()
@@ -284,6 +400,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   revealObserver?.disconnect()
+  window.removeEventListener('resize', syncTabsPill)
   if (typeTimer) clearTimeout(typeTimer)
   if (toastTimer) clearTimeout(toastTimer)
 })
@@ -308,19 +425,21 @@ onBeforeUnmount(() => {
           <span class="composer-glass" aria-hidden="true"></span>
           <div class="composer-card">
             <div class="composer-field">
-              <textarea
-                ref="textareaEl"
-                v-model="rawInput"
-                class="batch-textarea"
-                rows="1"
-                autocomplete="off"
-                autocapitalize="off"
-                spellcheck="false"
-                :placeholder="placeholderText"
-                :aria-label="t('batch.placeholder')"
-                @keydown.meta.enter.prevent="submitBatch"
-                @keydown.ctrl.enter.prevent="submitBatch"
-              ></textarea>
+              <div ref="textareaWrapEl" class="batch-textarea-wrap" @scroll="updateTextareaMask">
+                <textarea
+                  ref="textareaEl"
+                  v-model="rawInput"
+                  class="batch-textarea"
+                  rows="1"
+                  autocomplete="off"
+                  autocapitalize="off"
+                  spellcheck="false"
+                  :placeholder="placeholderText"
+                  :aria-label="t('batch.placeholder')"
+                  @keydown.meta.enter.prevent="submitBatch"
+                  @keydown.ctrl.enter.prevent="submitBatch"
+                ></textarea>
+              </div>
             </div>
             <div class="composer-toolbar">
               <div class="composer-left">
@@ -334,7 +453,7 @@ onBeforeUnmount(() => {
                 </div>
                 <span class="composer-counter">{{ counterLabel }}</span>
               </div>
-              <button class="composer-submit" type="button" :disabled="pending || !ipList.length" @click="submitBatch">
+              <button class="composer-submit" type="button" :disabled="pending || !parsedEntries.length" @click="submitBatch">
                 <span class="submit-chip" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14,6 C14,5.448 13.552,5 13,5 L8.5,5 C5.462,5 3,7.462 3,10.5 C3,13.538 5.462,16 8.5,16 L16,16 L16,18 C16,18.377 16.212,18.722 16.549,18.892 C16.886,19.063 17.289,19.029 17.593,18.805 L17.604,18.797 L17.631,18.777 C17.655,18.759 17.689,18.734 17.732,18.701 C17.817,18.637 17.939,18.544 18.084,18.431 C18.374,18.205 18.763,17.892 19.156,17.552 C19.543,17.215 19.956,16.831 20.281,16.464 C20.442,16.282 20.602,16.08 20.727,15.872 C20.836,15.691 21,15.377 21,15 C21,14.623 20.836,14.309 20.727,14.128 C20.602,13.92 20.442,13.718 20.281,13.536 C19.956,13.169 19.543,12.785 19.156,12.448 C18.763,12.108 18.374,11.795 18.084,11.569 C17.939,11.456 17.817,11.363 17.732,11.299 C17.689,11.266 17.655,11.241 17.631,11.223 L17.604,11.203 L17.596,11.197 L17.593,11.195 C17.29,10.971 16.886,10.937 16.549,11.107 C16.212,11.278 16,11.623 16,12 L16,14 L8.5,14 C6.567,14 5,12.433 5,10.5 C5,8.567 6.567,7 8.5,7 L13,7 C13.552,7 14,6.552 14,6 Z" fill="currentColor" /></svg>
                 </span>
@@ -418,7 +537,6 @@ onBeforeUnmount(() => {
     <section v-if="pending || results" class="section-panel batch-results" id="batch-results">
       <div class="information-inner">
         <div class="section-head">
-          <p class="section-index reveal"><span>1</span>{{ t('batch.index') }}</p>
           <h2 class="reveal">{{ t('batch.resultsTitle') }}</h2>
           <p class="reveal">{{ t('batch.resultsSubtitle') }}</p>
         </div>
@@ -430,13 +548,24 @@ onBeforeUnmount(() => {
           <article><strong>{{ summary.failed }}</strong><span>{{ t('batch.summaryFailed') }}</span></article>
         </div>
 
+        <div v-if="results" ref="tabsEl" class="tabs batch-tabs" role="tablist" @mouseleave="syncTabsPill">
+          <span class="tabs-morph-pill" :class="{ ready: tabsPill.ready, snap: tabsPill.snap }" :style="{ transform: `translate(${tabsPill.x}px, ${tabsPill.y}px)`, width: `${tabsPill.w}px` }" aria-hidden="true"></span>
+          <button :class="{ active: activeTab === 'basic' }" type="button" role="tab" :aria-selected="activeTab === 'basic'" @mouseenter="hoverTabPill" @click="selectTab('basic')">{{ t('batch.tabBasic') }}</button>
+          <button :class="{ active: activeTab === 'platforms' }" type="button" role="tab" :aria-selected="activeTab === 'platforms'" @mouseenter="hoverTabPill" @click="selectTab('platforms')">{{ t('batch.tabPlatforms') }}</button>
+        </div>
+
         <div v-if="pending && !results" class="batch-table-card batch-table-pending">
           <p>{{ scanningLabel }}</p>
         </div>
 
-        <div v-if="results" class="batch-table-card">
-          <div class="batch-table-inner">
-            <Table class="batch-table">
+        <div v-if="results && activeTab === 'basic'" class="batch-table-card" @mouseleave="hideTablePill">
+          <span
+            class="batch-table-pill"
+            :class="{ visible: tablePill.visible, snap: tablePill.snap }"
+            :style="{ transform: `translate(${tablePill.x}px, ${tablePill.y}px)`, width: `${tablePill.w}px`, height: `${tablePill.h}px` }"
+            aria-hidden="true"
+          ></span>
+          <Table class="batch-table">
               <TableHeader>
                 <TableRow class="batch-table-head-row hover:bg-transparent">
                   <TableHead class="h-11 pl-4 pr-2">{{ t('batch.colIp') }}</TableHead>
@@ -449,7 +578,7 @@ onBeforeUnmount(() => {
               </TableHeader>
               <TableBody>
                 <template v-for="entry in results" :key="entry.ip">
-                  <TableRow v-if="entry.status === 'ok'">
+                  <TableRow v-if="entry.status === 'ok'" class="hover:bg-transparent" @mouseenter="moveTablePill">
                     <TableCell class="py-4 pl-4 pr-2">
                       <NuxtLink
                         class="batch-ip-link"
@@ -488,7 +617,7 @@ onBeforeUnmount(() => {
                       <span class="batch-verdict">{{ entry.data.analysis.title }}</span>
                     </TableCell>
                   </TableRow>
-                  <TableRow v-else class="hover:bg-transparent">
+                  <TableRow v-else class="hover:bg-transparent" @mouseenter="moveTablePill">
                     <TableCell :colspan="6" class="py-4 pl-4 pr-4">
                       <span class="batch-row-error">
                         <b class="batch-ip-link batch-ip-static">{{ entry.ip }}</b>
@@ -499,10 +628,52 @@ onBeforeUnmount(() => {
                 </template>
               </TableBody>
             </Table>
-          </div>
         </div>
 
-        <button v-if="results" class="batch-rescan" type="button" @click="backToComposer">{{ t('batch.rescan') }}</button>
+        <div v-if="results && activeTab === 'platforms'" class="batch-table-card" @mouseleave="hideTablePill">
+          <span
+            class="batch-table-pill"
+            :class="{ visible: tablePill.visible, snap: tablePill.snap }"
+            :style="{ transform: `translate(${tablePill.x}px, ${tablePill.y}px)`, width: `${tablePill.w}px`, height: `${tablePill.h}px` }"
+            aria-hidden="true"
+          ></span>
+          <Table v-if="okEntries.length" class="batch-table batch-platform-table">
+            <TableHeader>
+              <TableRow class="batch-table-head-row hover:bg-transparent">
+                <TableHead class="h-11 pl-4 pr-2">{{ t('batch.colPlatform') }}</TableHead>
+                <TableHead v-for="entry in okEntries" :key="entry.ip" class="h-11 px-3">
+                  <span class="batch-platform-ip">{{ entry.ip }}</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow v-for="platform in BATCH_PLATFORMS" :key="platform.name" class="hover:bg-transparent" @mouseenter="moveTablePill">
+                <TableCell class="py-4 pl-4 pr-2">
+                  <span class="batch-platform-name">
+                    <PlatformBrandIcon :name="platform.name" :src="platform.icon" />
+                    {{ platform.name }}
+                  </span>
+                </TableCell>
+                <TableCell v-for="entry in okEntries" :key="entry.ip" class="py-4 px-3">
+                  <span class="batch-platform-cell">
+                    <span class="batch-platform-score" :class="scoreTone(platformScore(platform.base, entry.health))">
+                      <b>{{ platformScore(platform.base, entry.health) }}</b><i>/100</i>
+                    </span>
+                    <span class="batch-platform-meter" :class="scoreTone(platformScore(platform.base, entry.health))">
+                      <i :style="{ width: `${platformScore(platform.base, entry.health)}%` }"></i>
+                    </span>
+                  </span>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+          <p v-else class="batch-table-pending">{{ t('batch.noPlatformData') }}</p>
+        </div>
+
+        <button v-if="results" class="batch-rescan" type="button" @click="backToComposer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /></svg>
+          <span>{{ t('batch.rescan') }}</span>
+        </button>
       </div>
     </section>
   </main>
@@ -587,6 +758,16 @@ onBeforeUnmount(() => {
 }
 .composer-card:focus-within { outline-color: #5c9dee; }
 .composer-field { padding: 12px 16px 0; }
+.batch-textarea-wrap {
+  position: relative;
+  max-height: 264px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #d9dce0 transparent;
+}
+.batch-textarea-wrap::-webkit-scrollbar { width: 8px; }
+.batch-textarea-wrap::-webkit-scrollbar-track { background: transparent; }
+.batch-textarea-wrap::-webkit-scrollbar-thumb { background: #d9dce0; border-radius: 999px; border: 2px solid #fff; }
 .batch-textarea {
   display: block;
   width: 100%;
@@ -595,7 +776,7 @@ onBeforeUnmount(() => {
   border: 0;
   outline: none;
   resize: none;
-  overflow-y: auto;
+  overflow: hidden;
   background: transparent;
   color: var(--ink);
   font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
@@ -653,10 +834,37 @@ onBeforeUnmount(() => {
 /* 检测结果区 */
 .batch-results { margin-top: 56px; padding: 80px 0; min-height: 0; }
 .batch-summary { margin-top: 48px; }
-.batch-table-card { margin-top: 28px; padding: 8px; border-radius: 16px; background: rgba(255, 255, 255, .55); box-shadow: 0 24px 60px rgba(31, 63, 104, .08); }
-.batch-table-inner { overflow: hidden; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; }
-.batch-table-pending { padding: 48px 8px; color: #737373; font-size: 14px; text-align: center; }
-.batch-table { min-width: 880px; }
+.batch-table-card { position: relative; margin-top: 28px; border-radius: 12px; background: #fff; overflow: hidden; }
+.batch-table-pill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  border-radius: 0;
+  background: #f1f4f1;
+  opacity: 0;
+  pointer-events: none;
+  transition: transform .5s cubic-bezier(.3, 1.35, .45, 1), width .5s cubic-bezier(.3, 1.35, .45, 1), height .5s cubic-bezier(.3, 1.35, .45, 1), opacity .25s ease;
+  will-change: transform, width, height;
+}
+.batch-table-pill.visible { opacity: 1; }
+.batch-table-pill.snap { transition: opacity .25s ease; }
+.batch-table-pending { padding: 48px 16px; color: #737373; font-size: 14px; text-align: center; }
+.batch-table { position: relative; z-index: 1; min-width: 880px; }
+.batch-tabs { margin-top: 28px; }
+.batch-platform-name { display: inline-flex; gap: 8px; align-items: center; font-size: 14px; font-weight: 500; }
+.batch-platform-ip { font-family: "JetBrains Mono", monospace; font-size: 12.5px; color: #737373; }
+.batch-platform-cell { display: flex; flex-direction: column; gap: 6px; min-width: 96px; }
+.batch-platform-score { display: inline-flex; gap: 3px; align-items: baseline; font-family: "JetBrains Mono", monospace; font-size: 14px; font-weight: 700; }
+.batch-platform-score i { font-style: normal; font-weight: 400; font-size: 11px; color: #a3a3a3; }
+.batch-platform-score.good { color: #27a64a; }
+.batch-platform-score.warn { color: #ec6a2e; }
+.batch-platform-score.bad { color: #dc2626; }
+.batch-platform-meter { display: block; width: 72px; height: 4px; overflow: hidden; border-radius: 999px; background: #edf0ed; }
+.batch-platform-meter i { display: block; height: 100%; border-radius: inherit; }
+.batch-platform-meter.good i { background: #27a64a; }
+.batch-platform-meter.warn i { background: #ec6a2e; }
+.batch-platform-meter.bad i { background: #dc2626; }
 .batch-table-head-row { background: #f8f9f8; }
 .batch-table-head-row [data-slot="table-head"] { color: #737373; font-size: 13px; font-weight: 500; }
 .batch-ip-link { font-family: "JetBrains Mono", monospace; font-size: 13.5px; font-weight: 500; color: var(--ink); transition: color .2s; }
@@ -678,7 +886,8 @@ a.batch-ip-link:hover { color: var(--deep-green); text-decoration: underline; te
 .batch-risk em { padding: 3px 7px; border-radius: 6px; font-size: 12px; font-style: normal; font-weight: 500; line-height: 16px; }
 .batch-verdict { display: block; max-width: 300px; font-size: 13.5px; line-height: 1.5; white-space: normal; }
 .batch-row-error { display: inline-flex; gap: 10px; align-items: baseline; flex-wrap: wrap; color: #dc2626; font-size: 13px; }
-.batch-rescan { display: block; margin: 24px auto 0; padding: 10px 22px; border: 1px solid #e5e7eb; border-radius: 999px; background: #fff; color: var(--ink); font-size: 13.5px; font-weight: 550; cursor: pointer; transition: background .2s, border-color .2s; }
+.batch-rescan { display: flex; width: fit-content; gap: 8px; align-items: center; margin: 28px auto 0; padding: 13px 28px; border: 1px solid #e5e7eb; border-radius: 999px; background: #fff; color: var(--ink); font-size: 14.5px; font-weight: 550; cursor: pointer; transition: background .2s, border-color .2s; }
+.batch-rescan svg { width: 16px; height: 16px; }
 .batch-rescan:hover { border-color: var(--ink); background: var(--ink); color: #fff; }
 
 @media (max-width: 900px) {

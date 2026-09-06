@@ -1,0 +1,13 @@
+{
+  "slug": "changelog-risk-score-history",
+  "title": "Changelog: Risk Score History in One Click",
+  "date": "Sep 1, 2026",
+  "readTime": "3 min read",
+  "author": "IP Ready",
+  "category": "changelog",
+  "cover": "steps",
+  "excerpt": "Every check you run now feeds a per-IP history timeline, so you can see how a score drifted over the past 90 days.",
+  "status": "published",
+  "order": 5,
+  "coverImage": "/assets/blog-covers/score-history.svg"
+}

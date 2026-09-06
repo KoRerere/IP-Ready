@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import { computePlatformReadiness, type PlatformReadiness, type ReadinessContext } from '#shared/utils/platform-readiness'
 
 type PlatformFilter = 'all' | 'ai' | 'ecommerce' | 'advertising' | 'social'
 
 interface PlatformCard {
   name: string
-  score: number
   icon: string
+  readiness?: PlatformReadiness
 }
 
 interface IpScanResult {
@@ -33,6 +34,9 @@ interface IpScanResult {
   abuse_velocity?: string
   bot_status?: boolean
   mobile?: boolean
+  hosting?: boolean
+  anonymous?: boolean
+  icloud_relay?: boolean
   risk_score?: number
   operating_system?: string
   browser?: string
@@ -94,41 +98,40 @@ let infoTableTextGestureResetTimer: ReturnType<typeof setTimeout> | undefined
 const featureDuration = 5000
 
 const platformIcon = (filename: string) => `/assets/icons/platform/${filename}`
-const claudePlatform: PlatformCard = { name: 'Claude', score: 88, icon: platformIcon('IP_ic_claude.svg') }
-const chatGptPlatform: PlatformCard = { name: 'ChatGPT', score: 88, icon: platformIcon('IP_ic_chatgpt.svg') }
-const amazonPlatform: PlatformCard = { name: 'Amazon', score: 95, icon: platformIcon('IP_ic_Amazon.svg') }
-const ebayPlatform: PlatformCard = { name: 'Ebay', score: 98, icon: platformIcon('IP_ic_eBay.svg') }
-const binancePlatform: PlatformCard = { name: 'Binance', score: 76, icon: platformIcon('IP_ic_binance.svg') }
+const claudePlatform: PlatformCard = { name: 'Claude', icon: platformIcon('IP_ic_claude.svg') }
+const chatGptPlatform: PlatformCard = { name: 'ChatGPT', icon: platformIcon('IP_ic_chatgpt.svg') }
+const amazonPlatform: PlatformCard = { name: 'Amazon', icon: platformIcon('IP_ic_Amazon.svg') }
+const ebayPlatform: PlatformCard = { name: 'Ebay', icon: platformIcon('IP_ic_eBay.svg') }
 
 const platformGroups: Record<PlatformFilter, PlatformCard[]> = {
-  all: [claudePlatform, chatGptPlatform, amazonPlatform, ebayPlatform, binancePlatform],
+  all: [claudePlatform, chatGptPlatform, amazonPlatform, ebayPlatform, { name: 'Binance', icon: platformIcon('IP_ic_binance.svg') }],
   ai: [
     claudePlatform,
     chatGptPlatform,
-    { name: 'Gemini', score: 91, icon: platformIcon('IP_ic_gemini.svg') },
-    { name: 'Perplexity', score: 84, icon: platformIcon('IP_ic_perplexity.svg') },
-    { name: 'Grok', score: 82, icon: platformIcon('IP_ic_grok.svg') },
+    { name: 'Gemini', icon: platformIcon('IP_ic_gemini.svg') },
+    { name: 'Perplexity', icon: platformIcon('IP_ic_perplexity.svg') },
+    { name: 'Grok', icon: platformIcon('IP_ic_grok.svg') },
   ],
   ecommerce: [
     amazonPlatform,
     ebayPlatform,
-    { name: 'Shopify', score: 92, icon: platformIcon('IP_ic_Shopify.svg') },
-    { name: 'Etsy', score: 89, icon: platformIcon('IP_ic_Etsy.svg') },
-    { name: 'AliExpress', score: 85, icon: platformIcon('IP_ic_AliExpress.svg') },
+    { name: 'Shopify', icon: platformIcon('IP_ic_Shopify.svg') },
+    { name: 'Etsy', icon: platformIcon('IP_ic_Etsy.svg') },
+    { name: 'AliExpress', icon: platformIcon('IP_ic_AliExpress.svg') },
   ],
   advertising: [
-    { name: 'Facebook Ads', score: 90, icon: platformIcon('IP_ic_Facebook.svg') },
-    { name: 'Instagram Ads', score: 88, icon: platformIcon('IP_ic_instagram.svg') },
-    { name: 'TikTok Ads', score: 87, icon: platformIcon('IP_ic_tiktok.svg') },
-    { name: 'YouTube Ads', score: 92, icon: platformIcon('IP_ic_youtube.svg') },
-    { name: 'LinkedIn Ads', score: 84, icon: platformIcon('IP_ic_linkedin.svg') },
+    { name: 'Facebook Ads', icon: platformIcon('IP_ic_Facebook.svg') },
+    { name: 'Instagram Ads', icon: platformIcon('IP_ic_instagram.svg') },
+    { name: 'TikTok Ads', icon: platformIcon('IP_ic_tiktok.svg') },
+    { name: 'YouTube Ads', icon: platformIcon('IP_ic_youtube.svg') },
+    { name: 'LinkedIn Ads', icon: platformIcon('IP_ic_linkedin.svg') },
   ],
   social: [
-    { name: 'Facebook', score: 91, icon: platformIcon('IP_ic_Facebook.svg') },
-    { name: 'Instagram', score: 90, icon: platformIcon('IP_ic_instagram.svg') },
-    { name: 'TikTok', score: 89, icon: platformIcon('IP_ic_tiktok.svg') },
-    { name: 'Reddit', score: 86, icon: platformIcon('IP_ic_reddit.svg') },
-    { name: 'Discord', score: 85, icon: platformIcon('IP_ic_discord.svg') },
+    { name: 'Facebook', icon: platformIcon('IP_ic_Facebook.svg') },
+    { name: 'Instagram', icon: platformIcon('IP_ic_instagram.svg') },
+    { name: 'TikTok', icon: platformIcon('IP_ic_tiktok.svg') },
+    { name: 'Reddit', icon: platformIcon('IP_ic_reddit.svg') },
+    { name: 'Discord', icon: platformIcon('IP_ic_discord.svg') },
   ],
 }
 
@@ -149,13 +152,34 @@ const coordinates = computed(() => {
   if (scan.value?.latitude == null || scan.value?.longitude == null) return t('misc.na')
   return `${scan.value.latitude}, ${scan.value.longitude}`
 })
+const readinessContext = computed<ReadinessContext>(() => ({
+  country_code: scan.value?.country_code,
+  proxy: scan.value?.proxy,
+  vpn: scan.value?.vpn,
+  tor: scan.value?.tor,
+  anonymous: scan.value?.anonymous,
+  icloud_relay: scan.value?.icloud_relay,
+  hosting: scan.value?.hosting,
+  recent_abuse: scan.value?.recent_abuse,
+}))
 const displayedPlatforms = computed(() => {
-  const adjustment = scan.value ? healthScore.value - 86 : 0
   return platformGroups[activeFilter.value].map((platform) => ({
     ...platform,
-    score: Math.min(99, Math.max(1, platform.score + adjustment)),
+    readiness: scan.value ? computePlatformReadiness(platform.name, readinessContext.value) : undefined,
   }))
 })
+function readinessCaption(platform: PlatformCard) {
+  const level = platform.readiness?.level
+  if (!level) return t('report.checkingSignals')
+  return t(level === 'ready' ? 'platform.applicable' : level === 'caution' ? 'platform.caution' : 'platform.notApplicable')
+}
+function readinessHits(platform: PlatformCard) {
+  return platform.readiness?.hits.map((id) => t(`signal.${id}`)).join(' · ') ?? ''
+}
+function quickReadFor(name: string) {
+  if (!scan.value) return '--'
+  return computePlatformReadiness(name, readinessContext.value)?.level === 'ready' ? t('report.good') : t('report.poor')
+}
 const localTime = computed(() => {
   if (!scan.value?.timezone) return t('misc.na')
   try {
@@ -187,7 +211,7 @@ async function loadIpScan() {
 function animatePlatformScores() {
   if (!import.meta.client) return
 
-  const targets = displayedPlatforms.value.map((platform) => platform.score)
+  const targets = displayedPlatforms.value.map((platform) => platform.readiness?.score ?? 0)
   if (platformScoreFrame !== undefined) cancelAnimationFrame(platformScoreFrame)
 
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -220,6 +244,12 @@ function preparePlatformScores() {
   animatedPlatformScores.value = displayedPlatforms.value.map(() => 0)
 }
 
+// 扫描结果到达后重跑一次分数动画，让平台分从 0 滚到真实值
+watch(scan, () => {
+  preparePlatformScores()
+  animatePlatformScores()
+})
+
 function preventBottomOverscroll(event: WheelEvent) {
   if (event.ctrlKey || event.deltaY <= 0) return
 
@@ -237,6 +267,9 @@ useHead({
       name: 'description',
       content: () => t('meta.description'),
     },
+    { property: 'og:title', content: () => t('meta.title') },
+    { property: 'og:description', content: () => t('meta.description') },
+    { property: 'og:type', content: 'website' },
   ],
   link: [
     { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
@@ -584,11 +617,11 @@ function stopInfoTableDrag(event: PointerEvent) {
             <div class="score-divider"></div>
             <p class="platform-label">{{ t('report.quickRead') }}</p>
             <div class="quick-platforms">
-              <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_claude.svg')" alt="" /></span>Claude</span><b>{{ t('report.good') }}</b></div>
-              <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_chatgpt.svg')" alt="" /></span>ChatGPT</span><b>{{ t('report.good') }}</b></div>
-              <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_gemini.svg')" alt="" /></span>Gemini</span><b>{{ t('report.good') }}</b></div>
-              <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_Amazon.svg')" alt="" /></span>Amazon</span><b>{{ t('report.good') }}</b></div>
-              <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_tiktok_shop.svg')" alt="" /></span>Tiktok Shop</span><b>{{ t('report.good') }}</b></div>
+              <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_claude.svg')" alt="" /></span>Claude</span><b>{{ quickReadFor('Claude') }}</b></div>
+              <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_chatgpt.svg')" alt="" /></span>ChatGPT</span><b>{{ quickReadFor('ChatGPT') }}</b></div>
+              <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_gemini.svg')" alt="" /></span>Gemini</span><b>{{ quickReadFor('Gemini') }}</b></div>
+              <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_Amazon.svg')" alt="" /></span>Amazon</span><b>{{ quickReadFor('Amazon') }}</b></div>
+              <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_tiktok_shop.svg')" alt="" /></span>Tiktok Shop</span><b>{{ quickReadFor('Tiktok Shop') }}</b></div>
             </div>
             <a class="platform-link" href="#readiness">{{ t('report.otherPlatforms') }} <CurrentIcon class="platform-arrow-icon" src="/assets/figma/imgVector29.svg" /></a>
           </aside>
@@ -638,17 +671,18 @@ function stopInfoTableDrag(event: PointerEvent) {
                       <PlatformBrandIcon :name="platform.name" :src="platform.icon" />
                       {{ platform.name }}
                     </span>
-                      <CurrentIcon class="check-icon" src="/assets/figma/imgVector2.svg" :label="t('platform.ready')" />
+                      <CurrentIcon v-if="platform.readiness?.level === 'ready'" class="check-icon" src="/assets/figma/imgVector2.svg" :label="t('platform.ready')" />
+                      <span v-else-if="platform.readiness" class="platform-flag" :class="platform.readiness.level" role="img" :aria-label="readinessCaption(platform)">!</span>
                   </div>
                   <div class="platform-info">
                     <div class="platform-score-block">
-                      <div class="platform-score" :aria-label="`${platform.score} out of 100`">
-                        <b aria-hidden="true">{{ animatedPlatformScores[index] ?? 0 }}</b>
+                      <div class="platform-score" :aria-label="`${platform.readiness?.score ?? 0} out of 100`" :title="readinessHits(platform)">
+                        <b aria-hidden="true">{{ scan ? (animatedPlatformScores[index] ?? platform.readiness?.score ?? 0) : '--' }}</b>
                         <span aria-hidden="true">/100</span>
                       </div>
-                      <div class="meter"><i :style="{ '--score': `${platform.score}%` }"></i></div>
+                      <div class="meter"><i :style="{ '--score': `${platform.readiness?.score ?? 0}%` }"></i></div>
                     </div>
-                    <p>{{ t('platform.applicable') }}</p>
+                    <p>{{ readinessCaption(platform) }}</p>
                   </div>
                 </article>
                 <img

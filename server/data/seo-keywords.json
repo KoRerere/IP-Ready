@@ -1,0 +1,122 @@
+{
+  "researchedAt": "2026-09",
+  "source": "Google autocomplete (suggestqueries.google.com, gl=US, real query data) + public volume research. Full report: docs/keyword-research-2026-09.md",
+  "legend": {
+    "priority": "P0 = do now, P1 = next 1-2 months, P2 = watchlist",
+    "competition": "SERP strength of current top results",
+    "volumeTier": "estimated monthly search demand",
+    "coverage": "how much of this cluster the site currently covers"
+  },
+  "clusters": [
+    {
+      "id": "risk-score-checks",
+      "name": "IP Risk / Fraud Score Checks",
+      "targetPage": "/check",
+      "competition": "medium",
+      "volumeTier": "mid",
+      "coverage": "partial",
+      "nextAction": "Check page title/H1 aligned to 'ip fraud score check free'; add competitor-comparison posts (Scamalytics alternative, IPQS vs Scamalytics).",
+      "keywords": [
+        { "term": "ip fraud score check", "priority": "P0" },
+        { "term": "ip fraud score check free", "priority": "P0" },
+        { "term": "ip risk score check", "priority": "P0" },
+        { "term": "my ip risk score", "priority": "P0" },
+        { "term": "ip score check online", "priority": "P1" },
+        { "term": "ip reputation check", "priority": "P1" },
+        { "term": "ip fraud score meaning", "priority": "P1" },
+        { "term": "scamalytics alternative", "priority": "P1" },
+        { "term": "ipqs lookup", "priority": "P2" },
+        { "term": "ip trust score check", "priority": "P2" },
+        { "term": "proxy score checker", "priority": "P2" }
+      ]
+    },
+    {
+      "id": "blacklist-flagged",
+      "name": "Blacklist & Flagged IP",
+      "targetPage": "/blog",
+      "competition": "medium",
+      "volumeTier": "mid",
+      "coverage": "partial",
+      "nextAction": "Publish 'Is My IP Blacklisted? How to Check and Remove It' + a dedicated 'IP flagged as open proxy (Instagram)' explainer.",
+      "keywords": [
+        { "term": "ip blacklist check", "priority": "P0" },
+        { "term": "is my ip blacklisted", "priority": "P0" },
+        { "term": "ip flagged meaning", "priority": "P0" },
+        { "term": "my ip is blacklisted how to remove", "priority": "P1" },
+        { "term": "ip blacklist removal online", "priority": "P1" },
+        { "term": "ip flagged check", "priority": "P1" },
+        { "term": "ip flagged as open proxy instagram", "priority": "P1" },
+        { "term": "ip address flagged as high risk", "priority": "P2" },
+        { "term": "ip flagged by cloudflare", "priority": "P2" }
+      ]
+    },
+    {
+      "id": "platform-ip-bans",
+      "name": "Platform IP Bans",
+      "targetPage": "/blog",
+      "competition": "low",
+      "volumeTier": "mid",
+      "coverage": "partial",
+      "nextAction": "Published: pillar 'IP Bans Explained' + Discord guide. Remaining: Roblox / TikTok / Reddit / Twitter per-platform guides.",
+      "keywords": [
+        { "term": "ip banned meaning", "priority": "P0" },
+        { "term": "discord ip ban fix", "priority": "P0" },
+        { "term": "roblox ip ban how to fix", "priority": "P0" },
+        { "term": "tiktok ip ban appeal", "priority": "P0" },
+        { "term": "discord ip ban appeal", "priority": "P1" },
+        { "term": "reddit ip ban checker", "priority": "P1" },
+        { "term": "twitter ip ban check", "priority": "P1" },
+        { "term": "ip banned instagram", "priority": "P1" }
+      ]
+    },
+    {
+      "id": "vpn-detection",
+      "name": "VPN Detection",
+      "targetPage": "/blog",
+      "competition": "medium",
+      "volumeTier": "mid",
+      "coverage": "gap",
+      "nextAction": "'Am I Using a VPN?' test/explainer + scenario posts (YouTube 'vpn detected', games). Head terms owned by NordVPN/Surfshark — go specific.",
+      "keywords": [
+        { "term": "vpn detection test", "priority": "P1" },
+        { "term": "am i using a vpn test", "priority": "P1" },
+        { "term": "how to avoid vpn detection", "priority": "P1" },
+        { "term": "vpn detected how to fix", "priority": "P2" },
+        { "term": "vpn detected youtube", "priority": "P2" },
+        { "term": "can vpn be detected", "priority": "P2" }
+      ]
+    },
+    {
+      "id": "ip-types-proxies",
+      "name": "IP Types & Proxies",
+      "targetPage": "/resources",
+      "competition": "high",
+      "volumeTier": "mid",
+      "coverage": "partial",
+      "nextAction": "Only comparison long-tails — align existing posts' titles to 'vs datacenter / vs isp'. Avoid 'residential proxies' head terms (Bright Data/Oxylabs).",
+      "keywords": [
+        { "term": "low fraud score ip", "priority": "P0" },
+        { "term": "residential proxy vs datacenter", "priority": "P1" },
+        { "term": "static residential proxy vs isp", "priority": "P1" },
+        { "term": "isp proxy meaning", "priority": "P1" },
+        { "term": "datacenter ip check", "priority": "P1" },
+        { "term": "residential ip meaning", "priority": "P2" },
+        { "term": "residential proxy vs vpn", "priority": "P2" }
+      ]
+    },
+    {
+      "id": "generic-head-terms",
+      "name": "Generic Head Terms",
+      "targetPage": "",
+      "competition": "high",
+      "volumeTier": "head",
+      "coverage": "skipped",
+      "nextAction": "Intent mismatch (geolocation lookup, not risk) and Google answer boxes + incumbents own the SERP. Do not target.",
+      "keywords": [
+        { "term": "what is my ip", "priority": "P2" },
+        { "term": "ip lookup", "priority": "P2" },
+        { "term": "ip checker", "priority": "P2" }
+      ]
+    }
+  ]
+}

@@ -21,7 +21,12 @@ const related = computed(() => data.value!.related)
 
 useHead({
   title: () => `${post.value.title} — IP Ready`,
-  meta: [{ name: 'description', content: () => post.value.excerpt }],
+  meta: [
+    { name: 'description', content: () => post.value.excerpt },
+    { property: 'og:title', content: () => post.value.title },
+    { property: 'og:description', content: () => post.value.excerpt },
+    { property: 'og:type', content: 'article' },
+  ],
   link: [
     { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
     { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },

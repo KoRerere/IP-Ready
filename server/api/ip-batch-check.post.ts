@@ -1,5 +1,5 @@
 import { appendScan, type ScanRecord } from '../utils/scan-store'
-import { isPublicIp, isValidIp, lookupIpIntelligence } from '../utils/ip-intelligence'
+import { isPublicIp, isValidIp, lookupIpIntelligence, type IpScanResult } from '../utils/ip-intelligence'
 
 // 单次批量检测的 IP 上限，前端输入框的计数器与之保持一致
 export const MAX_BATCH_IPS = 20
@@ -14,6 +14,54 @@ interface BatchResultError {
   ip: string
   status: 'error'
   error: string
+}
+
+// 本地开发且未配置 iplocate key 时，返回基于 IP 哈希的确定性假数据（同 IP 结果恒定），方便预览完整检测结果样式
+const MOCK_PLACES = [
+  { code: 'US', city: 'Ashburn', isp: 'Cogent Communications', type: 'hosting' },
+  { code: 'CN', city: 'Hangzhou', isp: 'China Telecom', type: 'isp' },
+  { code: 'JP', city: 'Tokyo', isp: 'NTT Communications', type: 'hosting' },
+  { code: 'GB', city: 'London', isp: 'Vodafone UK', type: 'mobile' },
+  { code: 'DE', city: 'Frankfurt', isp: 'Hetzner Online GmbH', type: 'hosting' },
+  { code: 'SG', city: 'Singapore', isp: 'Singtel', type: 'isp' },
+  { code: 'KR', city: 'Seoul', isp: 'Korea Telecom', type: 'mobile' },
+  { code: 'NL', city: 'Amsterdam', isp: 'LeaseWeb Netherlands', type: 'hosting' },
+]
+
+function hashIp(ip: string) {
+  let hash = 0
+  for (let i = 0; i < ip.length; i++) hash = (hash * 31 + ip.charCodeAt(i)) >>> 0
+  return hash
+}
+
+function buildMockResult(ip: string): IpScanResult {
+  const hash = hashIp(ip)
+  const place = MOCK_PLACES[hash % MOCK_PLACES.length]!
+  const risk = hash % 100
+  return {
+    ip,
+    proxy: risk >= 55,
+    vpn: risk >= 40,
+    tor: risk >= 85,
+    anonymous: risk >= 40,
+    hosting: risk >= 55 || hash % 3 === 0,
+    recent_abuse: risk >= 70,
+    icloud_relay: risk >= 90,
+    ISP: place.isp,
+    organization: place.isp,
+    ASN: 10000 + (hash % 55000),
+    country_code: place.code,
+    city: place.city,
+    connection_type: place.type,
+    risk_score: risk,
+    analysis: {
+      title: risk >= 75 ? 'Your Network Shows Elevated Risk.' : risk >= 40 ? 'Your Network Needs Attention.' : 'Your Network Looks Healthy.',
+      summary: risk >= 55 ? 'An anonymizing network signal was detected, which may trigger additional verification.' : 'No active proxy, VPN, or Tor signal was detected in the current scan.',
+      concern: risk >= 70 ? 'This IP address appears on an abuse blocklist.' : risk >= 55 ? 'Datacenter characteristics may affect verification on some platforms.' : 'No major network concern was identified from the available signals.',
+    },
+    scanned_at: new Date().toISOString(),
+    source: 'Local mock (no API key)',
+  }
 }
 
 /** 以固定并发数逐个消费列表，保持结果顺序与输入一致 */
@@ -32,7 +80,6 @@ async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T)
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig(event)
-  if (!config.iplocateApiKey) throw createError({ statusCode: 503, statusMessage: 'IP detection is not configured.' })
 
   const body = await readBody<{ ips?: unknown }>(event).catch(() => null)
   const rawList = Array.isArray(body?.ips) ? body.ips.filter((value): value is string => typeof value === 'string') : []
@@ -46,6 +93,14 @@ export default defineEventHandler(async (event) => {
     if (seen.has(value)) continue
     seen.add(value)
     ips.push(value)
+  }
+
+  if (!config.iplocateApiKey) {
+    if (import.meta.dev) {
+      const mockResults = ips.map((ip) => ({ ip, status: 'ok' as const, data: buildMockResult(ip) }))
+      return { results: mockResults, total: mockResults.length }
+    }
+    throw createError({ statusCode: 503, statusMessage: 'IP detection is not configured.' })
   }
 
   const scannedRecords: ScanRecord[] = []

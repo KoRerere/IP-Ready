@@ -50,7 +50,11 @@ onBeforeUnmount(() => revealObserver?.disconnect())
 
 useHead({
   title: () => t('blog.metaTitle'),
-  meta: [{ name: 'description', content: () => t('blog.metaDescription') }],
+  meta: [
+    { name: 'description', content: () => t('blog.metaDescription') },
+    { property: 'og:title', content: () => t('blog.metaTitle') },
+    { property: 'og:description', content: () => t('blog.metaDescription') },
+  ],
   link: [
     { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
     { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },

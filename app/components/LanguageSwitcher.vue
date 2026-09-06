@@ -98,7 +98,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.lang-switcher { position: relative; flex: 0 0 auto; margin-left: 4px; }
+.lang-switcher { position: relative; flex: 0 0 auto; margin-left: auto; }
 .lang-toggle { display: inline-flex; align-items: center; gap: 7px; padding: 8px 12px; border: 0; border-radius: 999px; background: transparent; color: var(--ink-soft); font-size: 14px; font-weight: 500; line-height: 20px; cursor: pointer; transition: color .2s, box-shadow .2s; }
 .lang-toggle:hover { color: #0a0a0a; }
 .lang-switcher.open .lang-toggle { color: #0a0a0a; }

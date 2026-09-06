@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computePlatformReadiness, type ReadinessContext } from '#shared/utils/platform-readiness'
+
 interface IpScanResult {
   ip: string
   proxy?: boolean
@@ -17,6 +19,9 @@ interface IpScanResult {
   vpn?: boolean
   tor?: boolean
   recent_abuse?: boolean
+  hosting?: boolean
+  anonymous?: boolean
+  icloud_relay?: boolean
   risk_score?: number
   browser?: string
   operating_system?: string
@@ -39,6 +44,50 @@ const copyToastMessage = ref(t('misc.copied'))
 const userAgent = ref('Detecting browser…')
 const currentTime = ref(new Date())
 let toastTimer: ReturnType<typeof setTimeout> | undefined
+
+// 占位符打字机动画（与 Batch Check 页同款效果）：逐字打出示例文案，停顿后删除换下一条
+const PHRASE_KEYS = ['check.placeholder', 'check.phrase2', 'check.phrase3']
+const placeholderText = ref('')
+let phraseIndex = 0
+let charIndex = 0
+let deleting = false
+let typeTimer: ReturnType<typeof setTimeout> | undefined
+
+function tickPlaceholder() {
+  const full = t(PHRASE_KEYS[phraseIndex]!)
+  if (!deleting) {
+    charIndex++
+    placeholderText.value = full.slice(0, charIndex)
+    if (charIndex >= full.length) {
+      deleting = true
+      typeTimer = setTimeout(tickPlaceholder, 1800)
+    } else {
+      typeTimer = setTimeout(tickPlaceholder, 65)
+    }
+  } else {
+    charIndex--
+    placeholderText.value = full.slice(0, charIndex)
+    if (charIndex <= 0) {
+      deleting = false
+      phraseIndex = (phraseIndex + 1) % PHRASE_KEYS.length
+      typeTimer = setTimeout(tickPlaceholder, 420)
+    } else {
+      typeTimer = setTimeout(tickPlaceholder, 26)
+    }
+  }
+}
+
+function startPlaceholder() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    placeholderText.value = t(PHRASE_KEYS[0]!)
+    return
+  }
+  const full = t(PHRASE_KEYS[0]!)
+  placeholderText.value = full
+  charIndex = full.length
+  deleting = true
+  typeTimer = setTimeout(tickPlaceholder, 1800)
+}
 
 const riskScore = computed(() => scan.value?.risk_score ?? 0)
 const healthScore = computed(() => scan.value ? Math.max(0, 100 - riskScore.value) : 0)
@@ -65,7 +114,20 @@ const localTime = computed(() => {
     return t('misc.na')
   }
 })
-const quickRead = computed(() => (scan.value ? (healthScore.value >= 70 ? t('report.good') : t('report.poor')) : t('report.good')))
+const readinessContext = computed<ReadinessContext>(() => ({
+  country_code: scan.value?.country_code,
+  proxy: scan.value?.proxy,
+  vpn: scan.value?.vpn,
+  tor: scan.value?.tor,
+  anonymous: scan.value?.anonymous,
+  icloud_relay: scan.value?.icloud_relay,
+  hosting: scan.value?.hosting,
+  recent_abuse: scan.value?.recent_abuse,
+}))
+function quickReadFor(name: string) {
+  if (!scan.value) return '--'
+  return computePlatformReadiness(name, readinessContext.value)?.level === 'ready' ? t('report.good') : t('report.poor')
+}
 // AI 分析标题前的表情：检测中不显示，状态好 👍，状态差 ⚠️
 const analysisEmoji = computed(() => {
   if (!scan.value) return ''
@@ -139,7 +201,12 @@ function copyIp() {
 }
 
 useHead({
-  title: () => `${t('check.label')} - IP Ready`,
+  title: () => t('check.metaTitle'),
+  meta: [
+    { name: 'description', content: () => t('check.metaDescription') },
+    { property: 'og:title', content: () => t('check.metaTitle') },
+    { property: 'og:description', content: () => t('check.metaDescription') },
+  ],
   link: [
     { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
     { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
@@ -152,6 +219,7 @@ useHead({
 
 onBeforeUnmount(() => {
   if (toastTimer) clearTimeout(toastTimer)
+  if (typeTimer) clearTimeout(typeTimer)
 })
 
 function hasScanValue(value: unknown) {
@@ -170,6 +238,7 @@ onMounted(() => {
   userAgent.value = navigator.userAgent
   const clockTimer = window.setInterval(() => { currentTime.value = new Date() }, 1000)
   onBeforeUnmount(() => window.clearInterval(clockTimer))
+  startPlaceholder()
   if (typeof route.query.ip === 'string' && route.query.ip) void submitCheck()
 })
 </script>
@@ -197,7 +266,7 @@ onMounted(() => {
             inputmode="text"
             autocomplete="off"
             spellcheck="false"
-            :placeholder="t('check.placeholder')"
+            :placeholder="placeholderText"
             :aria-label="t('check.placeholder')"
           />
           <button class="check-submit" type="submit" :disabled="scanPending">
@@ -278,11 +347,11 @@ onMounted(() => {
           <div class="score-divider"></div>
           <p class="platform-label">{{ t('report.quickRead') }}</p>
           <div class="quick-platforms">
-            <div><span><span class="quick-icon"><img class="simple-glyph" src="/assets/icons/platform/IP_ic_claude.svg" alt="" /></span>Claude</span><b>{{ quickRead }}</b></div>
-            <div><span><span class="quick-icon"><img class="simple-glyph" src="/assets/icons/platform/IP_ic_chatgpt.svg" alt="" /></span>ChatGPT</span><b>{{ quickRead }}</b></div>
-            <div><span><span class="quick-icon"><img class="simple-glyph" src="/assets/icons/platform/IP_ic_gemini.svg" alt="" /></span>Gemini</span><b>{{ quickRead }}</b></div>
-            <div><span><span class="quick-icon"><img class="simple-glyph" src="/assets/icons/platform/IP_ic_Amazon.svg" alt="" /></span>Amazon</span><b>{{ quickRead }}</b></div>
-            <div><span><span class="quick-icon"><img class="simple-glyph" src="/assets/icons/platform/IP_ic_tiktok_shop.svg" alt="" /></span>Tiktok Shop</span><b>{{ quickRead }}</b></div>
+            <div><span><span class="quick-icon"><img class="simple-glyph" src="/assets/icons/platform/IP_ic_claude.svg" alt="" /></span>Claude</span><b>{{ quickReadFor('Claude') }}</b></div>
+            <div><span><span class="quick-icon"><img class="simple-glyph" src="/assets/icons/platform/IP_ic_chatgpt.svg" alt="" /></span>ChatGPT</span><b>{{ quickReadFor('ChatGPT') }}</b></div>
+            <div><span><span class="quick-icon"><img class="simple-glyph" src="/assets/icons/platform/IP_ic_gemini.svg" alt="" /></span>Gemini</span><b>{{ quickReadFor('Gemini') }}</b></div>
+            <div><span><span class="quick-icon"><img class="simple-glyph" src="/assets/icons/platform/IP_ic_Amazon.svg" alt="" /></span>Amazon</span><b>{{ quickReadFor('Amazon') }}</b></div>
+            <div><span><span class="quick-icon"><img class="simple-glyph" src="/assets/icons/platform/IP_ic_tiktok_shop.svg" alt="" /></span>Tiktok Shop</span><b>{{ quickReadFor('Tiktok Shop') }}</b></div>
           </div>
           <a class="platform-link" href="/#readiness">{{ t('report.otherPlatforms') }} <CurrentIcon class="platform-arrow-icon" src="/assets/figma/imgVector29.svg" /></a>
         </aside>
@@ -414,14 +483,16 @@ onMounted(() => {
   border: 1px solid #dfe5e2;
   border-radius: 12px;
   background: rgba(255, 255, 255, .9);
-  color: #0a0a0a;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 15px;
+  color: #4a4a4a;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 500;
   outline: none;
   transition: border-color .2s, box-shadow .2s;
 }
-.check-input::placeholder { color: #9aa4a0; font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; }
-.check-input:focus { border-color: #17b57d; box-shadow: 0 0 0 3px rgba(23, 181, 125, .15); }
+.check-input::placeholder { color: #9aa4a0; font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; font-weight: 400; }
+.check-input:hover { border-color: #b3cdf0; }
+.check-input:focus { border-color: #2f7fe8; box-shadow: 0 0 0 3px rgba(47, 127, 232, .15); }
 .check-submit {
   flex: 0 0 auto;
   height: 52px;

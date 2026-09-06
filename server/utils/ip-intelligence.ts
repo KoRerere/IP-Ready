@@ -23,6 +23,7 @@ export interface IpIntelligence {
   anonymous: boolean
   hosting: boolean
   recent_abuse: boolean
+  icloud_relay: boolean
   ISP?: string
   organization?: string
   ASN?: number
@@ -96,6 +97,7 @@ function normalizeIntelligence(data: IplocateResponse): IpIntelligence {
     anonymous: Boolean(data.privacy?.is_anonymous),
     hosting: Boolean(data.privacy?.is_hosting),
     recent_abuse: Boolean(data.privacy?.is_abuser),
+    icloud_relay: Boolean(data.privacy?.is_icloud_relay),
     ISP: data.asn?.name || data.company?.name || undefined,
     organization: data.company?.name || data.asn?.name || undefined,
     ASN: Number.isFinite(asnNumber) ? asnNumber : undefined,

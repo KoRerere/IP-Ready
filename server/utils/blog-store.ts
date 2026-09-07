@@ -1,10 +1,12 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
+import { get, put } from '@vercel/blob'
 import type { BlogPost, BlogPostListItem } from '#shared/types/blog'
 import { renderMarkdown } from '#shared/utils/markdown'
 import { SEED_POSTS } from './seed-data'
 
 const DATA_DIR = path.join(process.cwd(), 'server', 'data', 'posts')
+const BLOB_PATH = 'blog/posts.json'
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
 export function slugify(title: string): string {
@@ -30,6 +32,10 @@ export function sanitizeHtml(html: string): string {
 }
 
 let seedPromise: Promise<void> | undefined
+
+function usesBlobStorage(): boolean {
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID)
+}
 
 async function ensureSeeded(): Promise<void> {
   seedPromise ??= (async () => {
@@ -57,7 +63,34 @@ function sortByListOrder(posts: BlogPost[]): BlogPost[] {
   )
 }
 
-async function readAll(): Promise<BlogPost[]> {
+function normalizePosts(value: unknown): BlogPost[] {
+  if (!Array.isArray(value)) return []
+  return sortByListOrder(value.filter((post): post is BlogPost => (
+    typeof post === 'object'
+    && post !== null
+    && 'slug' in post
+    && typeof post.slug === 'string'
+    && isValidSlug(post.slug)
+  )))
+}
+
+async function readAllFromBlob(): Promise<BlogPost[]> {
+  const result = await get(BLOB_PATH, { access: 'private', useCache: false })
+  if (!result || result.statusCode !== 200 || !result.stream) return []
+  return normalizePosts(JSON.parse(await new Response(result.stream).text()))
+}
+
+async function writeAllToBlob(posts: BlogPost[]): Promise<void> {
+  await put(BLOB_PATH, JSON.stringify(posts, null, 2), {
+    access: 'private',
+    addRandomSuffix: false,
+    allowOverwrite: true,
+    contentType: 'application/json',
+    cacheControlMaxAge: 60,
+  })
+}
+
+async function readAllFromFileSystem(): Promise<BlogPost[]> {
   await ensureSeeded()
   const files = await fs.readdir(DATA_DIR)
   const posts = await Promise.all(files
@@ -69,10 +102,23 @@ async function readAll(): Promise<BlogPost[]> {
         return null
       }
     }))
-  return sortByListOrder(posts.filter((p): p is BlogPost => p !== null && isValidSlug(p.slug)))
+  return normalizePosts(posts)
+}
+
+async function readAll(): Promise<BlogPost[]> {
+  return usesBlobStorage() ? readAllFromBlob() : readAllFromFileSystem()
 }
 
 async function writePost(post: BlogPost): Promise<void> {
+  if (usesBlobStorage()) {
+    const posts = await readAllFromBlob()
+    const index = posts.findIndex((candidate) => candidate.slug === post.slug)
+    if (index === -1) posts.push(post)
+    else posts[index] = post
+    await writeAllToBlob(sortByListOrder(posts))
+    return
+  }
+
   await fs.mkdir(DATA_DIR, { recursive: true })
   await fs.writeFile(path.join(DATA_DIR, `${post.slug}.json`), JSON.stringify(post, null, 2), 'utf8')
 }
@@ -85,6 +131,16 @@ export async function nextOrder(): Promise<number> {
 
 /** Persist a new manual ordering from an ordered list of slugs. */
 export async function reorderPosts(slugs: string[]): Promise<void> {
+  if (usesBlobStorage()) {
+    const posts = await readAllFromBlob()
+    const order = new Map(slugs.map((slug, index) => [slug, index]))
+    for (const post of posts) {
+      if (order.has(post.slug)) post.order = order.get(post.slug)
+    }
+    await writeAllToBlob(sortByListOrder(posts))
+    return
+  }
+
   await ensureSeeded()
   const order = new Map(slugs.map((slug, index) => [slug, index]))
   await Promise.all(slugs.map(async (slug) => {
@@ -144,6 +200,14 @@ export async function savePost(input: BlogPost): Promise<BlogPost> {
 }
 
 export async function deletePostBySlug(slug: string): Promise<boolean> {
+  if (usesBlobStorage()) {
+    const posts = await readAllFromBlob()
+    const remaining = posts.filter((post) => post.slug !== slug)
+    if (remaining.length === posts.length) return false
+    await writeAllToBlob(remaining)
+    return true
+  }
+
   await ensureSeeded()
   try {
     await fs.unlink(path.join(DATA_DIR, `${slug}.json`))

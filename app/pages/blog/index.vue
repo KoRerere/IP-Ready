@@ -48,13 +48,12 @@ onMounted(() => {
 
 onBeforeUnmount(() => revealObserver?.disconnect())
 
-useHead({
+useSiteSeo({
   title: () => t('blog.metaTitle'),
-  meta: [
-    { name: 'description', content: () => t('blog.metaDescription') },
-    { property: 'og:title', content: () => t('blog.metaTitle') },
-    { property: 'og:description', content: () => t('blog.metaDescription') },
-  ],
+  description: () => t('blog.metaDescription'),
+})
+
+useHead({
   link: [
     { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
     { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },

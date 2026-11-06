@@ -260,16 +260,32 @@ function preventBottomOverscroll(event: WheelEvent) {
   if (atBottom) event.preventDefault()
 }
 
-useHead({
+useSiteSeo({
   title: () => t('meta.title'),
-  meta: [
-    {
-      name: 'description',
-      content: () => t('meta.description'),
+  description: () => t('meta.description'),
+  path: '/',
+})
+
+const faqJsonLd = computed(() => JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [1, 2, 3, 4, 5].map((index) => ({
+    '@type': 'Question',
+    name: t(`faq.q${index}`),
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: t(`faq.a${index}`),
     },
-    { property: 'og:title', content: () => t('meta.title') },
-    { property: 'og:description', content: () => t('meta.description') },
-    { property: 'og:type', content: 'website' },
+  })),
+}))
+
+useHead({
+  script: [
+    {
+      key: 'faq-jsonld',
+      type: 'application/ld+json',
+      innerHTML: faqJsonLd,
+    },
   ],
   link: [
     { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
@@ -561,6 +577,7 @@ function stopInfoTableDrag(event: PointerEvent) {
           <p class="hero-subtitle reveal">
             {{ t('hero.subtitle') }}
           </p>
+          <p class="hero-crawl-summary">{{ t('meta.description') }}</p>
           <div class="hero-points reveal" aria-label="Product benefits">
             <span><CurrentIcon class="hero-point-icon hero-point-shield" src="/assets/figma/imgVector4.svg" />{{ t('hero.pointScore') }}</span>
             <span><CurrentIcon class="hero-point-icon hero-point-data" src="/assets/figma/imgVector5.svg" />{{ t('hero.pointData') }}</span>

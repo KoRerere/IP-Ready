@@ -62,13 +62,12 @@ onUnmounted(() => {
   ctaObserver?.disconnect()
 })
 
-useHead({
+useSiteSeo({
   title: () => t('resources.metaTitle'),
-  meta: [
-    { name: 'description', content: () => t('resources.metaDescription') },
-    { property: 'og:title', content: () => t('resources.metaTitle') },
-    { property: 'og:description', content: () => t('resources.metaDescription') },
-  ],
+  description: () => t('resources.metaDescription'),
+})
+
+useHead({
   link: [
     { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
     { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },

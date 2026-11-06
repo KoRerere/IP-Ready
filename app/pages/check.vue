@@ -200,13 +200,12 @@ function copyIp() {
   return copyValue(scan.value.ip, t('misc.ipCopied'))
 }
 
-useHead({
+useSiteSeo({
   title: () => t('check.metaTitle'),
-  meta: [
-    { name: 'description', content: () => t('check.metaDescription') },
-    { property: 'og:title', content: () => t('check.metaTitle') },
-    { property: 'og:description', content: () => t('check.metaDescription') },
-  ],
+  description: () => t('check.metaDescription'),
+})
+
+useHead({
   link: [
     { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
     { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },

@@ -360,13 +360,12 @@ function observeReveals() {
   document.querySelectorAll('.reveal:not(.visible), .scroll-reveal-item:not(.visible)').forEach((element) => revealObserver?.observe(element))
 }
 
-useHead({
+useSiteSeo({
   title: () => t('batch.metaTitle'),
-  meta: [
-    { name: 'description', content: () => t('batch.metaDescription') },
-    { property: 'og:title', content: () => t('batch.metaTitle') },
-    { property: 'og:description', content: () => t('batch.metaDescription') },
-  ],
+  description: () => t('batch.metaDescription'),
+})
+
+useHead({
   link: [
     { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
     { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },

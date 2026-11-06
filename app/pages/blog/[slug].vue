@@ -19,14 +19,15 @@ if (error.value || !data.value) {
 const post = computed(() => data.value!.post)
 const related = computed(() => data.value!.related)
 
-useHead({
+useSiteSeo({
   title: () => `${post.value.title} — IP Ready`,
-  meta: [
-    { name: 'description', content: () => post.value.excerpt },
-    { property: 'og:title', content: () => post.value.title },
-    { property: 'og:description', content: () => post.value.excerpt },
-    { property: 'og:type', content: 'article' },
-  ],
+  description: () => post.value.excerpt,
+  path: () => `/blog/${post.value.slug}`,
+  image: () => post.value.coverImage,
+  type: 'article',
+})
+
+useHead({
   link: [
     { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
     { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },

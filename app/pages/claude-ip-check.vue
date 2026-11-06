@@ -1,14 +1,35 @@
 <script setup lang="ts">
-const { t } = useI18n()
+interface IpScanResult {
+  ip: string
+  country_code?: string
+  city?: string
+  risk_score?: number
+}
+
+const { locale, t } = useI18n()
 
 const signals = [1, 2, 3, 4, 5] as const
 const steps = [1, 2, 3, 4, 5, 6] as const
 const faqs = [1, 2, 3, 4, 5] as const
 const activeFaq = ref(0)
 
+const scan = ref<IpScanResult | null>(null)
+const scanFailed = ref(false)
+const scanPending = ref(true)
+
 const page = ref<HTMLElement | null>(null)
 let revealObserver: IntersectionObserver | undefined
 const revealTimers: ReturnType<typeof setTimeout>[] = []
+
+const riskScore = computed(() => scan.value?.risk_score ?? 0)
+const riskLevel = computed(() => (riskScore.value > 70 ? 'high' : riskScore.value >= 40 ? 'medium' : 'low'))
+const riskLabel = computed(() => (riskLevel.value === 'high' ? t('risk.high') : riskLevel.value === 'medium' ? t('risk.medium') : t('risk.low')))
+const regionLabel = computed(() => {
+  const code = scan.value?.country_code
+  if (!code) return ''
+  const country = new Intl.DisplayNames([locale.value === 'zh' ? 'zh-CN' : 'en'], { type: 'region' }).of(code) || code
+  return scan.value?.city ? `${country} · ${scan.value.city}` : country
+})
 
 useSiteSeo({
   title: () => t('claude.metaTitle'),
@@ -51,7 +72,27 @@ function toggleFaq(index: number) {
   activeFaq.value = activeFaq.value === index ? -1 : index
 }
 
+async function loadGlance() {
+  scanPending.value = true
+  scanFailed.value = false
+  try {
+    const result = await $fetch<IpScanResult>('/api/ip-check')
+    if (!result?.ip) {
+      scanFailed.value = true
+      scan.value = null
+      return
+    }
+    scan.value = result
+  } catch {
+    scan.value = null
+    scanFailed.value = true
+  } finally {
+    scanPending.value = false
+  }
+}
+
 onMounted(() => {
+  void loadGlance()
   const root = page.value
   if (!root) return
   const nodes = root.querySelectorAll<HTMLElement>('.claude-reveal')
@@ -82,35 +123,45 @@ onBeforeUnmount(() => {
     <AppHeader />
     <main>
       <section class="claude-hero">
-        <div class="claude-wash" aria-hidden="true">
-          <video autoplay loop muted playsinline preload="metadata" src="/assets/gradient-green-hero.mp4"></video>
-          <div class="claude-wash-fade"></div>
-        </div>
-
+        <div class="claude-blob" aria-hidden="true"></div>
         <div class="claude-hero-copy">
-          <h1 class="claude-h1 claude-enter">{{ t('claude.h1') }}</h1>
-          <p class="claude-sub claude-enter" style="animation-delay: 70ms">{{ t('claude.sub') }}</p>
-          <a class="claude-cta claude-enter" style="animation-delay: 140ms" href="/check">{{ t('claude.cta') }}</a>
-          <ul class="claude-pills claude-enter" style="animation-delay: 210ms">
+          <p class="claude-kicker claude-enter">{{ t('claude.kicker') }}</p>
+          <h1 class="claude-h1 claude-enter" style="animation-delay: 60ms">{{ t('claude.h1') }}</h1>
+          <p class="claude-sub claude-enter" style="animation-delay: 120ms">{{ t('claude.sub') }}</p>
+          <a class="claude-cta claude-enter" style="animation-delay: 180ms" href="/check">{{ t('claude.cta') }}</a>
+          <ul class="claude-pills claude-enter" style="animation-delay: 240ms">
             <li>{{ t('claude.pill.free') }}</li>
             <li>{{ t('claude.pill.signals') }}</li>
             <li>{{ t('claude.pill.signup') }}</li>
           </ul>
+          <a class="claude-ghost claude-enter" style="animation-delay: 300ms" href="#why">{{ t('claude.whyLink') }}</a>
         </div>
-
-        <LandingDetector class="claude-enter" style="animation-delay: 280ms" />
       </section>
 
-      <section class="claude-section claude-why" aria-labelledby="claude-why-title">
-        <div class="claude-section-inner">
+      <section class="claude-glance" aria-label="Network glance">
+        <a v-if="scanFailed" class="claude-cta claude-glance-open" href="/check">{{ t('claude.glance.open') }}</a>
+        <div v-else class="claude-glance-card" :class="{ 'is-pending': scanPending }" :aria-busy="scanPending">
+          <div class="claude-glance-id">
+            <strong>{{ scan?.ip || '…' }}</strong>
+            <span>{{ regionLabel || '…' }}</span>
+          </div>
+          <div class="claude-glance-actions">
+            <em v-if="scan" class="claude-risk" :class="riskLevel">{{ riskLabel }}</em>
+            <a href="/check">{{ t('claude.glance.report') }}</a>
+          </div>
+        </div>
+      </section>
+
+      <section id="why" class="claude-section" aria-labelledby="claude-why-title">
+        <div class="claude-measure">
           <p class="claude-kicker claude-reveal">{{ t('claude.why.kicker') }}</p>
           <h2 id="claude-why-title" class="claude-h2 claude-reveal" data-reveal-delay="60">{{ t('claude.why.title') }}</h2>
           <p class="claude-lead claude-reveal" data-reveal-delay="120">{{ t('claude.why.sub') }}</p>
-          <div class="claude-why-grid">
-            <article
+          <ol class="claude-why-list">
+            <li
               v-for="(n, index) in signals"
               :key="n"
-              class="claude-why-card claude-reveal"
+              class="claude-reveal"
               :data-reveal-delay="index * 70"
             >
               <span class="claude-why-num">{{ String(n).padStart(2, '0') }}</span>
@@ -118,13 +169,13 @@ onBeforeUnmount(() => {
                 <h3>{{ t(`claude.why.${n}.title`) }}</h3>
                 <p>{{ t(`claude.why.${n}.body`) }}</p>
               </div>
-            </article>
-          </div>
+            </li>
+          </ol>
         </div>
       </section>
 
       <section class="claude-section claude-check" aria-labelledby="claude-check-title">
-        <div class="claude-section-inner claude-narrow">
+        <div class="claude-measure">
           <p class="claude-kicker claude-reveal">{{ t('claude.check.kicker') }}</p>
           <h2 id="claude-check-title" class="claude-h2 claude-reveal" data-reveal-delay="60">{{ t('claude.check.title') }}</h2>
           <p class="claude-lead claude-reveal" data-reveal-delay="120">{{ t('claude.check.sub') }}</p>
@@ -142,9 +193,9 @@ onBeforeUnmount(() => {
       </section>
 
       <section class="claude-faq" aria-labelledby="claude-faq-title">
-        <div class="claude-faq-inner">
+        <div class="claude-measure">
           <h2 id="claude-faq-title" class="claude-h2 claude-reveal">{{ t('claude.faq.title') }}</h2>
-          <div class="faq-list">
+          <div class="faq-list claude-faq-list">
             <article
               v-for="(n, index) in faqs"
               :key="n"
@@ -182,74 +233,79 @@ onBeforeUnmount(() => {
   color: #171717;
 }
 
-.claude-page :deep(.site-footer) {
-  margin-top: 0;
-}
+.claude-page :deep(.site-footer) { margin-top: 0; }
 
 .claude-hero {
   position: relative;
-  padding: 56px 24px 96px;
+  display: flex;
+  min-height: calc(100svh - 64px);
+  align-items: center;
+  justify-content: center;
+  padding: 72px 24px 96px;
   overflow: hidden;
 }
 
-.claude-wash {
+.claude-blob {
   position: absolute;
-  z-index: 0;
-  top: 0;
-  right: 0;
-  left: 0;
-  height: min(780px, 100%);
+  top: 8%;
+  left: 50%;
+  width: min(640px, 80vw);
+  height: min(640px, 80vw);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(29, 201, 77, .16) 0%, rgba(29, 201, 77, 0) 68%);
+  filter: blur(8px);
   pointer-events: none;
-}
-
-.claude-wash video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: .5;
-}
-
-.claude-wash-fade {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(255,255,255,.94) 0%, rgba(255,255,255,.9) 34%, rgba(255,255,255,.97) 72%, #fff 100%);
+  transform: translateX(-50%);
 }
 
 .claude-hero-copy {
   position: relative;
   z-index: 1;
   display: flex;
+  width: min(920px, 100%);
   flex-direction: column;
   align-items: center;
 }
 
-.claude-h1 {
-  max-width: 14em;
+.claude-kicker {
   margin: 0;
+  color: #12b84f;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-align: center;
+  text-transform: none;
+}
+
+.claude-h1 {
+  max-width: 12em;
+  margin: 18px 0 0;
   color: #171717;
   font-family: Geist, Inter, sans-serif;
-  font-size: clamp(40px, 5vw, 64px);
+  font-size: clamp(48px, 6.4vw, 72px);
   font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1.08;
+  letter-spacing: -0.045em;
+  line-height: 1.02;
   text-align: center;
   text-wrap: balance;
 }
 
-.claude-sub,
-.claude-lead {
-  max-width: 780px;
-  margin: 20px 0 0;
+.claude-sub {
+  max-width: 36rem;
+  margin: 22px 0 0;
   color: #404040;
-  font-size: 16px;
-  line-height: 1.6;
+  font-size: 18px;
+  line-height: 1.45;
   text-align: center;
 }
 
 .claude-lead {
-  max-width: 640px;
-  margin-inline: auto;
+  max-width: 36rem;
+  margin: 18px auto 0;
   color: #7b7b7b;
+  font-size: 17px;
+  line-height: 1.55;
+  text-align: center;
 }
 
 .claude-cta {
@@ -257,9 +313,9 @@ onBeforeUnmount(() => {
   min-height: 48px;
   align-items: center;
   justify-content: center;
-  margin-top: 28px;
-  padding: 0 22px;
-  border-radius: 8px;
+  margin-top: 32px;
+  padding: 0 26px;
+  border-radius: 999px;
   background: #12b84f;
   color: #fff;
   font-size: 15px;
@@ -277,7 +333,7 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   justify-content: center;
   gap: 8px;
-  margin: 16px 0 0;
+  margin: 18px 0 0;
   padding: 0;
   list-style: none;
 }
@@ -289,121 +345,173 @@ onBeforeUnmount(() => {
   padding: 0 12px;
   border: 1px solid #0000000f;
   border-radius: 999px;
-  background: rgba(255,255,255,.9);
+  background: rgba(255,255,255,.72);
   color: #404040;
   font-size: 13px;
   font-weight: 500;
 }
 
+.claude-ghost {
+  margin-top: 22px;
+  color: #7b7b7b;
+  font-size: 14px;
+  font-weight: 500;
+  transition: color .35s cubic-bezier(.22,1,.36,1);
+}
+
+.claude-ghost:hover { color: #087a32; }
+.claude-ghost:focus-visible { outline: 2px solid #087a32; outline-offset: 3px; border-radius: 4px; }
+
 .claude-enter {
   animation: platform-card-enter .48s cubic-bezier(.21,.47,.32,.98) both;
 }
 
-.claude-section {
-  padding: 120px 24px;
+.claude-glance {
+  display: flex;
+  justify-content: center;
+  padding: 0 24px 48px;
 }
 
-.claude-section-inner {
-  width: min(1120px, 100%);
+.claude-glance-card {
+  display: flex;
+  width: min(760px, 100%);
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px 22px;
+  border-radius: 18px;
+  background: #f7f8f9;
+}
+
+.claude-glance-card.is-pending { color: #7b7b7b; }
+
+.claude-glance-id {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.claude-glance-id strong {
+  color: #171717;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.claude-glance-id span {
+  color: #7b7b7b;
+  font-size: 14px;
+}
+
+.claude-glance-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 18px;
+}
+
+.claude-risk {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #fff;
+  color: #087a32;
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.claude-risk.medium { background: #fbded0; color: #c2410c; }
+.claude-risk.high { background: #fee2e2; color: #b91c1c; }
+
+.claude-glance-actions a {
+  color: #087a32;
+  font-size: 14px;
+  font-weight: 600;
+  transition: color .35s cubic-bezier(.22,1,.36,1);
+}
+
+.claude-glance-actions a:hover { color: #12b84f; }
+
+.claude-glance-open { margin-top: 0; }
+
+.claude-section { padding: 160px 24px; }
+
+.claude-measure {
+  width: min(720px, 100%);
   margin: 0 auto;
 }
 
-.claude-narrow { width: min(760px, 100%); }
-
-.claude-kicker {
-  margin: 0;
-  color: #12b84f;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: .04em;
-  text-align: center;
-}
-
 .claude-h2 {
-  max-width: 16em;
-  margin: 12px auto 0;
+  max-width: 14em;
+  margin: 14px auto 0;
   color: #171717;
   font-family: Geist, Inter, sans-serif;
-  font-size: clamp(32px, 4vw, 48px);
+  font-size: clamp(36px, 4.4vw, 52px);
   font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1.15;
+  letter-spacing: -0.04em;
+  line-height: 1.08;
   text-align: center;
   text-wrap: balance;
 }
 
-.claude-why-grid {
+.claude-why-list,
+.claude-steps {
+  margin: 72px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.claude-why-list { display: flex; flex-direction: column; gap: 36px; }
+
+.claude-why-list li {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 16px;
-  margin-top: 64px;
-}
-
-.claude-why-card {
-  display: flex;
-  min-height: 220px;
-  flex-direction: column;
-  justify-content: space-between;
+  grid-template-columns: 92px minmax(0, 1fr);
   gap: 28px;
-  padding: 22px 20px 24px;
-  border: 1px solid #0000000f;
-  border-radius: 12px;
-  background: #f7f8f9;
-  transition: border-color .35s cubic-bezier(.22,1,.36,1), background-color .35s cubic-bezier(.22,1,.36,1);
-}
-
-.claude-why-card:hover {
-  border-color: rgba(18,184,79,.4);
-  background: #fff;
+  align-items: baseline;
 }
 
 .claude-why-num {
   color: #12b84f;
   font-family: Geist, Inter, sans-serif;
-  font-size: 14px;
+  font-size: clamp(40px, 4vw, 56px);
   font-weight: 600;
-  letter-spacing: .06em;
+  letter-spacing: -0.05em;
+  line-height: .9;
 }
 
-.claude-why-card h3 {
-  margin: 0 0 8px;
-  color: #171717;
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 1.35;
-}
-
-.claude-why-card p {
+.claude-why-list h3 {
   margin: 0;
-  color: #404040;
-  font-size: 14px;
-  line-height: 1.5;
+  color: #171717;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
 }
 
-.claude-steps {
-  margin: 48px 0 0;
-  padding: 0;
-  list-style: none;
+.claude-why-list p {
+  margin: 8px 0 0;
+  color: #404040;
+  font-size: 16px;
+  line-height: 1.5;
 }
 
 .claude-steps li {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr);
-  gap: 12px;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 16px;
   align-items: baseline;
-  padding: 18px 0;
-  border-bottom: 1px solid #0000000f;
+  padding: 22px 0;
   color: #171717;
-  font-size: 16px;
+  font-size: 17px;
   line-height: 1.5;
 }
-
-.claude-steps li:first-child { border-top: 1px solid #0000000f; }
 
 .claude-step-num {
   color: #12b84f;
   font-family: "JetBrains Mono", ui-monospace, monospace;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
 }
 
@@ -411,31 +519,31 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 36px;
+  margin-top: 56px;
 }
 
 .claude-check-cta p {
   margin: 0;
   color: #404040;
-  font-size: 15px;
+  font-size: 16px;
   text-align: center;
 }
 
 .claude-faq {
-  padding: 120px 24px;
+  padding: 160px 24px;
   background: #f7f8f9;
 }
 
-.claude-faq-inner { width: min(760px, 100%); margin: 0 auto; }
+.claude-faq-list { margin-top: 48px; }
 
 .claude-bottom {
-  padding: 112px 24px;
+  padding: 160px 24px;
   background: #f0f6f2;
 }
 
 .claude-bottom-inner {
   display: flex;
-  width: min(720px, 100%);
+  width: min(640px, 100%);
   flex-direction: column;
   align-items: center;
   margin: 0 auto;
@@ -452,29 +560,45 @@ onBeforeUnmount(() => {
   transform: none;
 }
 
-@media (max-width: 1100px) {
-  .claude-why-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
+#why { scroll-margin-top: 96px; }
 
 @media (max-width: 900px) {
-  .claude-hero { padding-top: 108px; }
+  .claude-hero {
+    min-height: 0;
+    align-items: flex-start;
+    padding: 112px 20px 64px;
+  }
   .claude-section,
-  .claude-faq { padding-block: 80px; }
-  .claude-bottom { padding-block: 80px; }
+  .claude-faq,
+  .claude-bottom { padding-block: 96px; }
+  .claude-why-list { gap: 28px; margin-top: 48px; }
 }
 
 @media (max-width: 680px) {
-  .claude-hero { padding-inline: 16px; }
+  .claude-hero,
+  .claude-glance,
   .claude-section,
   .claude-faq,
   .claude-bottom { padding-inline: 16px; }
-  .claude-why-grid { grid-template-columns: 1fr; margin-top: 40px; }
-  .claude-why-card { min-height: 0; }
-  .claude-h1 { font-size: clamp(40px, 10vw, 48px); }
+  .claude-h1 { font-size: clamp(48px, 12vw, 56px); }
+  .claude-glance-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+    border-radius: 16px;
+  }
+  .claude-why-list li {
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: 16px;
+  }
+  .claude-why-num { font-size: 32px; }
+  .claude-why-list h3 { font-size: 18px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .claude-enter { animation: none; }
-  .claude-reveal { opacity: 1; transform: none; }
+  .claude-reveal,
+  .claude-blob { opacity: 1; transform: none; }
+  .claude-blob { transform: translateX(-50%); }
 }
 </style>

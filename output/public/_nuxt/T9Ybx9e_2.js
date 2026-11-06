@@ -1,0 +1,1 @@
+import{$n as e,U as t,et as n,zt as r}from"./BJJqepEs.js";import{n as i,t as a}from"./BHqjuTM_.js";var o=n({__name:`ebay-ip-check`,setup(n){let o=i.ebay;return(n,i)=>(r(),t(a,{page:e(o)},null,8,[`page`]))}});export{o as default};

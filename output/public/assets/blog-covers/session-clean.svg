@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 416" role="img" aria-label="Pre-send session checklist with progress ring">
+  <defs>
+    <pattern id="cv6-dots" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="1.6" cy="1.6" r="1.6" fill="rgba(23,23,23,.05)"/>
+    </pattern>
+  </defs>
+
+  <rect width="620" height="416" fill="#fbfcfb"/>
+  <rect width="620" height="416" fill="url(#cv6-dots)"/>
+
+  <circle cx="84" cy="84" r="6" fill="#1dc94d" opacity=".3"/>
+  <circle cx="552" cy="330" r="7" fill="#1dc94d" opacity=".22"/>
+
+  <!-- 左侧清单卡 -->
+  <g>
+    <rect x="66" y="96" width="204" height="224" rx="16" fill="#fff" stroke="#e0e0e2" stroke-width="2.5"/>
+    <rect x="86" y="118" width="88" height="10" rx="5" fill="#ececec"/>
+    <rect x="86" y="138" width="56" height="8" rx="4" fill="#ececec"/>
+    <!-- 条目 1 完成 -->
+    <g>
+      <circle cx="98" cy="176" r="9" fill="#1dc94d"/>
+      <path d="M93.5 176l3.2 3.2 5.8-6.2" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="116" y="172" width="80" height="8" rx="4" fill="#cfd6cf"/>
+    </g>
+    <!-- 条目 2 完成 -->
+    <g>
+      <circle cx="98" cy="210" r="9" fill="#1dc94d"/>
+      <path d="M93.5 210l3.2 3.2 5.8-6.2" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="116" y="206" width="92" height="8" rx="4" fill="#cfd6cf"/>
+    </g>
+    <!-- 条目 3 进行中 -->
+    <g>
+      <circle cx="98" cy="244" r="9" fill="#fff" stroke="#cfd6cf" stroke-width="2.4"/>
+      <rect x="116" y="240" width="62" height="8" rx="4" fill="#dcdcdc"/>
+      <rect x="186" y="238" width="26" height="11" rx="5.5" fill="rgba(29,201,77,.16)"/>
+    </g>
+    <rect x="86" y="272" width="164" height="14" rx="7" fill="#f1f1f1"/>
+  </g>
+
+  <!-- 中央进度环 -->
+  <g>
+    <circle cx="340" cy="208" r="86" fill="none" stroke="#e8ece8" stroke-width="22"/>
+    <circle cx="340" cy="208" r="86" fill="none" stroke="#1dc94d" stroke-width="22" stroke-linecap="round"
+            stroke-dasharray="540.4 540.4" stroke-dashoffset="108.1" transform="rotate(-90 340 208)"/>
+    <text x="340" y="222" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" font-size="46" font-weight="700" fill="#171717">80%</text>
+    <text x="340" y="248" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" font-size="14" fill="#7b7b7b">ready</text>
+    <!-- 圆心徽章 -->
+    <circle cx="340" cy="122" r="7" fill="#087a32"/>
+  </g>
+
+  <!-- 右侧完成徽章 -->
+  <g>
+    <rect x="468" y="150" width="88" height="116" rx="16" fill="#fff" stroke="#e0e0e2" stroke-width="2.5"/>
+    <rect x="488" y="170" width="48" height="20" rx="10" fill="#f4eedb"/>
+    <text x="512" y="184" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" font-size="9" font-weight="700" fill="#a8742a">START</text>
+    <rect x="488" y="204" width="48" height="22" rx="11" fill="rgba(29,201,77,.16)"/>
+    <text x="512" y="219" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" font-size="9" font-weight="700" fill="#087a32">CLEAN</text>
+    <rect x="488" y="240" width="48" height="8" rx="4" fill="#ececec"/>
+  </g>
+
+  <circle cx="70" cy="330" r="5" fill="#1dc94d" opacity=".35"/>
+  <circle cx="556" cy="84" r="6" fill="#1dc94d" opacity=".3"/>
+</svg>

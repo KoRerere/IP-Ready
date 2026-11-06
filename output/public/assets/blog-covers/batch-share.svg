@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 416" role="img" aria-label="Shareable batch check report card">
+  <defs>
+    <pattern id="cv3-dots" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="1.6" cy="1.6" r="1.6" fill="rgba(23,23,23,.05)"/>
+    </pattern>
+  </defs>
+
+  <rect width="620" height="416" fill="#fbfcfb"/>
+  <rect width="620" height="416" fill="url(#cv3-dots)"/>
+
+  <circle cx="88" cy="78" r="6" fill="#1dc94d" opacity=".3"/>
+  <circle cx="548" cy="330" r="7" fill="#1dc94d" opacity=".22"/>
+  <circle cx="70" cy="336" r="5" fill="#1dc94d" opacity=".35"/>
+
+  <!-- 左侧批量结果卡 -->
+  <g>
+    <rect x="70" y="92" width="188" height="232" rx="16" fill="#fff" stroke="#e0e0e2" stroke-width="2.5"/>
+    <rect x="90" y="114" width="92" height="10" rx="5" fill="#ececec"/>
+    <rect x="90" y="138" width="66" height="8" rx="4" fill="#ececec"/>
+    <!-- 行 1：CLEAN -->
+    <rect x="90" y="160" width="148" height="34" rx="8" fill="#f6f8f6"/>
+    <circle cx="106" cy="177" r="4.5" fill="#1dc94d"/>
+    <rect x="118" y="173" width="52" height="8" rx="4" fill="#cfd6cf"/>
+    <rect x="178" y="169" width="42" height="16" rx="8" fill="rgba(29,201,77,.16)"/>
+    <text x="199" y="181" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" font-size="9" font-weight="700" fill="#087a32">CLEAN</text>
+    <!-- 行 2：FLAG -->
+    <rect x="90" y="202" width="148" height="34" rx="8" fill="#f6f6f6"/>
+    <circle cx="106" cy="219" r="4.5" fill="#8a8a8a"/>
+    <rect x="118" y="215" width="44" height="8" rx="4" fill="#dcdcdc"/>
+    <rect x="178" y="211" width="42" height="16" rx="8" fill="#f4eedb"/>
+    <text x="199" y="223" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" font-size="9" font-weight="700" fill="#a8742a">FLAG</text>
+    <!-- 行 3：CLEAN -->
+    <rect x="90" y="244" width="148" height="34" rx="8" fill="#f6f8f6"/>
+    <circle cx="106" cy="261" r="4.5" fill="#1dc94d"/>
+    <rect x="118" y="257" width="58" height="8" rx="4" fill="#cfd6cf"/>
+    <rect x="178" y="253" width="42" height="16" rx="8" fill="rgba(29,201,77,.16)"/>
+    <text x="199" y="265" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" font-size="9" font-weight="700" fill="#087a32">CLEAN</text>
+    <rect x="90" y="292" width="148" height="14" rx="7" fill="#ececec"/>
+  </g>
+
+  <!-- 右侧分享卡 -->
+  <g>
+    <rect x="302" y="118" width="216" height="180" rx="16" fill="#fff" stroke="#e0e0e2" stroke-width="2.5"/>
+    <rect x="322" y="140" width="76" height="9" rx="4.5" fill="#ececec"/>
+    <rect x="322" y="158" width="110" height="9" rx="4.5" fill="#ececec"/>
+    <!-- 绿色分享按钮 -->
+    <rect x="322" y="192" width="76" height="76" rx="20" fill="#1dc94d"/>
+    <g fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round">
+      <path d="M352 216h16-16M360 208l8 8-8 8"/>
+    </g>
+    <!-- 链接行 -->
+    <g>
+      <rect x="412" y="204" width="86" height="34" rx="9" fill="#f6f8f6"/>
+      <rect x="424" y="217" width="44" height="8" rx="4" fill="#cfd6cf"/>
+      <circle cx="482" cy="221" r="5" fill="#1dc94d"/>
+    </g>
+    <g>
+      <rect x="322" y="252" width="176" height="12" rx="6" fill="#f1f1f1"/>
+      <circle cx="332" cy="258" r="3.2" fill="#1dc94d"/>
+    </g>
+  </g>
+
+  <!-- 右上下载/导出徽章 -->
+  <g>
+    <circle cx="540" cy="96" r="20" fill="rgba(29,201,77,.12)"/>
+    <path d="M540 104V90M533 98l7 7 7-7M533 106h14" fill="none" stroke="#087a32" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

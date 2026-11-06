@@ -1,0 +1,1 @@
+import{$n as e,U as t,et as n,zt as r}from"./BJJqepEs.js";import{n as i,t as a}from"./BHqjuTM_.news1106.js";var o=n({__name:`binance-ip-check`,setup(n){let o=i.binance;return(n,i)=>(r(),t(a,{page:e(o)},null,8,[`page`]))}});export{o as default};

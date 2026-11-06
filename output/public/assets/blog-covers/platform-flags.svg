@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 416" role="img" aria-label="Platform risk signals report">
+  <defs>
+    <pattern id="cv3-dots" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="1.6" cy="1.6" r="1.6" fill="rgba(23,23,23,.05)"/>
+    </pattern>
+  </defs>
+
+  <rect width="620" height="416" fill="#fbfcfb"/>
+  <rect width="620" height="416" fill="url(#cv3-dots)"/>
+
+  <circle cx="80" cy="72" r="6" fill="#1dc94d" opacity=".3"/>
+  <circle cx="72" cy="350" r="5" fill="#1dc94d" opacity=".3"/>
+
+  <!-- 信号报告卡 -->
+  <g>
+    <rect x="66" y="96" width="344" height="232" rx="18" fill="#fff" stroke="#e0e0e2" stroke-width="2.5"/>
+    <!-- 行 1：代理 -->
+    <rect x="90" y="122" width="38" height="38" rx="11" fill="rgba(29,201,77,.12)"/>
+    <path d="M104 132l7 7-7 7M115 139h-14" fill="none" stroke="#087a32" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="140" y="132" width="110" height="10" rx="5" fill="#ececec"/>
+    <rect x="140" y="150" width="70" height="8" rx="4" fill="#f1f1f1"/>
+    <rect x="296" y="130" width="88" height="24" rx="12" fill="rgba(29,201,77,.14)"/>
+    <circle cx="310" cy="142" r="4" fill="#1dc94d"/>
+    <text x="320" y="146.5" font-family="Inter, -apple-system, sans-serif" font-size="11.5" font-weight="600" fill="#087a32">CLEAN</text>
+    <!-- 行 2：VPN -->
+    <rect x="90" y="190" width="38" height="38" rx="11" fill="rgba(29,201,77,.12)"/>
+    <rect x="101" y="207" width="16" height="12" rx="3" fill="#087a32"/>
+    <path d="M104 207v-4a5 5 0 0 1 10 0v4" fill="none" stroke="#087a32" stroke-width="2.6" stroke-linecap="round"/>
+    <rect x="140" y="200" width="126" height="10" rx="5" fill="#ececec"/>
+    <rect x="140" y="218" width="86" height="8" rx="4" fill="#f1f1f1"/>
+    <rect x="296" y="198" width="88" height="24" rx="12" fill="rgba(255,140,66,.16)"/>
+    <path d="M304 216l6-12 6 12z" fill="#ff8c42" transform="rotate(90 310 210)"/>
+    <text x="322" y="214.5" font-family="Inter, -apple-system, sans-serif" font-size="11.5" font-weight="600" fill="#c05f1d">FLAG</text>
+    <!-- 行 3：Tor -->
+    <rect x="90" y="258" width="38" height="38" rx="11" fill="rgba(29,201,77,.12)"/>
+    <path d="M109 264l12 6.5-12 6.5-12-6.5z" fill="#087a32"/>
+    <path d="M97 277.5l12 6.5 12-6.5M97 284l12 6.5 12-6.5" fill="none" stroke="#087a32" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" opacity=".6"/>
+    <rect x="140" y="268" width="98" height="10" rx="5" fill="#ececec"/>
+    <rect x="140" y="286" width="60" height="8" rx="4" fill="#f1f1f1"/>
+    <rect x="296" y="266" width="88" height="24" rx="12" fill="rgba(255,140,66,.16)"/>
+    <path d="M304 284l6-12 6 12z" fill="#ff8c42" transform="rotate(90 310 278)"/>
+    <text x="322" y="282.5" font-family="Inter, -apple-system, sans-serif" font-size="11.5" font-weight="600" fill="#c05f1d">FLAG</text>
+  </g>
+
+  <!-- 右侧：警示盾 -->
+  <g>
+    <path d="M520 128l52 22v40c0 36-24 60-52 72-28-12-52-36-52-72v-40z" fill="rgba(29,201,77,.12)" stroke="#087a32" stroke-width="3.5" stroke-linejoin="round"/>
+    <path d="M520 172v26" stroke="#171717" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="520" cy="214" r="4.5" fill="#171717"/>
+  </g>
+  <!-- 警示小旗 -->
+  <g>
+    <path d="M560 92v-46" stroke="#171717" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M560 46l40 12-40 12z" fill="#ff8c42"/>
+  </g>
+  <circle cx="580" cy="300" r="7" fill="#1dc94d" opacity=".25"/>
+  <circle cx="600" cy="120" r="5" fill="#ff8c42" opacity=".5"/>
+  <circle cx="540" cy="70" r="5" fill="#1dc94d" opacity=".35"/>
+</svg>

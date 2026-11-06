@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 416" role="img" aria-label="Platforms orbiting a flagged address">
+  <defs>
+    <pattern id="bn-dots" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="1.6" cy="1.6" r="1.6" fill="rgba(23,23,23,.05)"/>
+    </pattern>
+    <linearGradient id="bn-base" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffb46b"/>
+      <stop offset="1" stop-color="#ff8fb0"/>
+    </linearGradient>
+    <radialGradient id="bn-a"><stop offset="0" stop-color="#ff9d5c" stop-opacity=".85"/><stop offset="1" stop-color="#ff9d5c" stop-opacity="0"/></radialGradient>
+    <radialGradient id="bn-b"><stop offset="0" stop-color="#ff6f9c" stop-opacity=".7"/><stop offset="1" stop-color="#ff6f9c" stop-opacity="0"/></radialGradient>
+    <radialGradient id="bn-c"><stop offset="0" stop-color="#ffe29a" stop-opacity=".8"/><stop offset="1" stop-color="#ffe29a" stop-opacity="0"/></radialGradient>
+    <filter id="bn-soft" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="52"/></filter>
+    <clipPath id="bn-clip"><rect x="22" y="22" width="576" height="372" rx="18"/></clipPath>
+  </defs>
+
+  <rect width="620" height="416" fill="#fbfcfb"/>
+  <rect width="620" height="416" fill="url(#bn-dots)"/>
+
+  <rect x="22" y="22" width="576" height="372" rx="18" fill="url(#bn-base)"/>
+  <g clip-path="url(#bn-clip)">
+    <g filter="url(#bn-soft)">
+      <ellipse cx="140" cy="300" rx="220" ry="160" fill="url(#bn-a)"/>
+      <ellipse cx="500" cy="110" rx="200" ry="150" fill="url(#bn-b)"/>
+      <ellipse cx="300" cy="60" rx="180" ry="110" fill="url(#bn-c)"/>
+    </g>
+
+    <g fill="none" stroke="#fff" stroke-width="2.2">
+      <ellipse cx="300" cy="210" rx="230" ry="130" stroke-dasharray="2 10" stroke-linecap="round" transform="rotate(-12 300 210)"/>
+      <ellipse cx="300" cy="210" rx="160" ry="88" stroke-dasharray="10 12" transform="rotate(-12 300 210)"/>
+      <ellipse cx="300" cy="210" rx="96" ry="52" stroke-dasharray="2 10" stroke-linecap="round" transform="rotate(-12 300 210)"/>
+    </g>
+
+    <g fill="#fff">
+      <circle cx="300" cy="210" r="13"/>
+      <path d="M295 200l10 20M305 200l-10 20" stroke="#ff8fb0" stroke-width="3.4" stroke-linecap="round"/>
+      <circle cx="474" cy="128" r="6"/><circle cx="118" cy="282" r="6"/><circle cx="486" cy="286" r="6"/>
+      <circle cx="150" cy="140" r="5"/><circle cx="530" cy="216" r="5"/>
+    </g>
+  </g>
+
+  <g>
+    <rect x="470" y="352" width="118" height="40" rx="12" fill="#fff" stroke="#ececec" stroke-width="1.5"/>
+    <circle cx="492" cy="372" r="8" fill="none" stroke="#171717" stroke-width="2.4"/>
+    <circle cx="492" cy="372" r="3" fill="#171717"/>
+    <text x="508" y="377" font-family="Inter, -apple-system, sans-serif" font-size="15" font-weight="700" fill="#171717">IP Ready</text>
+  </g>
+</svg>

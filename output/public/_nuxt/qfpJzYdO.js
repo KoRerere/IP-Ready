@@ -1,0 +1,1 @@
+import{r as e}from"./BrywZTfe.js";var t=e(`/assets/gradient-green-hero.mp4`);export{t};

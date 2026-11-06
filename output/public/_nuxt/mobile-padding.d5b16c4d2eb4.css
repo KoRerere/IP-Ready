@@ -1,0 +1,88 @@
+/* Mobile content spacing. Keep the homepage and desktop layout as the baseline. */
+@media (max-width: 620px) {
+  .rs-page main .rs-hero {
+    padding: 68px 15px 0;
+  }
+
+  .rs-page .rs-hero .rs-hero-inner {
+    padding-inline: 15px;
+    align-items: flex-start;
+  }
+
+  .rs-page main .rs-hero-title {
+    font-size: 34px;
+  }
+
+  .rs-page main .rs-inner {
+    padding-inline: 15px;
+  }
+
+  .rs-page main .rs-types-panel {
+    width: calc(100% - 30px);
+    margin-inline: 15px;
+    border-radius: 0;
+  }
+
+  main .hero-shell.check-shell {
+    margin-inline: 0;
+  }
+
+  main .hero-shell.check-shell .hero-copy {
+    width: calc(100% - 30px);
+  }
+
+  main .hero-shell.check-shell .ip-report {
+    margin-inline: auto;
+  }
+
+  .check-shell .ip-heading,
+  .check-shell .analysis-block,
+  .check-shell .score-panel {
+    padding-inline: 15px;
+  }
+
+  .check-shell .ip-facts {
+    width: calc(100% - 30px);
+    margin-inline: 15px;
+  }
+
+  body:has(.check-shell) .platform-card {
+    padding-inline: 15px;
+  }
+
+  main#top .batch-hero {
+    justify-content: flex-start;
+    padding-top: 40px;
+  }
+
+  main .batch-hero .batch-hero-panel {
+    right: 15px;
+    left: 15px;
+  }
+
+  main .batch-hero .batch-hero-inner {
+    width: calc(100% - 30px);
+    padding: 72px 15px 24px;
+  }
+
+  .batch-results .batch-table tr > :last-child {
+    padding-right: 16px;
+  }
+
+  .blog-page .blog-hero-inner,
+  .blog-page .blog-stories,
+  .blog-page .blog-newsletter-inner,
+  .blog-page .blog-article,
+  .blog-page .blog-keep-reading-inner {
+    width: calc(100% - 30px);
+  }
+
+  .blog-page .blog-hero-inner {
+    padding-top: 112px;
+  }
+
+  .blog-page .blog-keep-reading-date,
+  .blog-page .blog-keep-reading-title {
+    margin-inline: 7px;
+  }
+}

@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 416" role="img" aria-label="Checklist and improving risk score">
+  <defs>
+    <pattern id="cv4-dots" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="1.6" cy="1.6" r="1.6" fill="rgba(23,23,23,.05)"/>
+    </pattern>
+  </defs>
+
+  <rect width="620" height="416" fill="#fbfcfb"/>
+  <rect width="620" height="416" fill="url(#cv4-dots)"/>
+
+  <circle cx="84" cy="76" r="6" fill="#1dc94d" opacity=".3"/>
+  <circle cx="566" cy="86" r="5" fill="#1dc94d" opacity=".35"/>
+  <circle cx="590" cy="330" r="6" fill="#1dc94d" opacity=".22"/>
+
+  <!-- 清单板 -->
+  <g>
+    <rect x="92" y="86" width="212" height="256" rx="18" fill="#fff" stroke="#e0e0e2" stroke-width="2.5"/>
+    <rect x="168" y="70" width="60" height="30" rx="10" fill="#087a32"/>
+    <rect x="114" y="126" width="170" height="44" rx="10" fill="rgba(29,201,77,.08)"/>
+    <circle cx="138" cy="148" r="12" fill="#1dc94d"/>
+    <path d="M132.5 148l4 4 7.5-8" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="160" y="138" width="100" height="8" rx="4" fill="#d8dcd8"/>
+    <rect x="160" y="154" width="64" height="7" rx="3.5" fill="#ececec"/>
+    <circle cx="138" cy="204" r="12" fill="#1dc94d"/>
+    <path d="M132.5 204l4 4 7.5-8" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="160" y="194" width="88" height="8" rx="4" fill="#d8dcd8"/>
+    <rect x="160" y="210" width="56" height="7" rx="3.5" fill="#ececec"/>
+    <circle cx="138" cy="260" r="12" fill="#1dc94d"/>
+    <path d="M132.5 260l4 4 7.5-8" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="160" y="250" width="76" height="8" rx="4" fill="#d8dcd8"/>
+    <rect x="160" y="266" width="48" height="7" rx="3.5" fill="#ececec"/>
+    <circle cx="138" cy="312" r="12" fill="none" stroke="#cfd6cf" stroke-width="2.6" stroke-dasharray="3 5" stroke-linecap="round"/>
+    <rect x="160" y="304" width="70" height="8" rx="4" fill="#f1f1f1"/>
+  </g>
+
+  <!-- 迷你仪表：分数回升 -->
+  <path d="M368 262a104 104 0 0 1 208 0" fill="none" stroke="#e8ece8" stroke-width="26" stroke-linecap="round"/>
+  <path d="M368 262a104 104 0 0 1 98.7-103.6" fill="none" stroke="#1dc94d" stroke-width="26" stroke-linecap="round"/>
+  <path d="M472 262 538 234" stroke="#171717" stroke-width="6.5" stroke-linecap="round"/>
+  <circle cx="472" cy="262" r="13" fill="#171717"/>
+  <circle cx="472" cy="262" r="5" fill="#1dc94d"/>
+  <text x="472" y="318" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" font-size="34" font-weight="700" fill="#171717">92</text>
+  <text x="472" y="340" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" font-size="12" fill="#7b7b7b">/ 100</text>
+
+  <!-- 上升箭头 -->
+  <g>
+    <rect x="560" y="252" width="26" height="46" rx="6" fill="rgba(29,201,77,.14)"/>
+    <rect x="536" y="222" width="26" height="76" rx="6" fill="rgba(29,201,77,.28)"/>
+    <path d="M528 196 596 130" stroke="#087a32" stroke-width="6" stroke-linecap="round"/>
+    <path d="M566 124h32v32" fill="none" stroke="#087a32" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

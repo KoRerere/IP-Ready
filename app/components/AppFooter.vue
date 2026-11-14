@@ -26,26 +26,26 @@ onBeforeUnmount(() => footerObserver?.disconnect())
   <footer class="site-footer">
     <div class="site-footer-inner">
       <div class="footer-grid">
-        <a class="footer-mark" href="#top" aria-label="IP Ready home">
+        <a class="footer-mark" href="/#top" aria-label="IP Ready home">
           <img src="/assets/figma/imgLogo.svg" alt="" />
           <span>IP Ready</span>
         </a>
         <div>
           <h3>{{ t('footer.platform') }}</h3>
-          <a href="#top">{{ t('nav.checkAnother') }}</a>
+          <a href="/check">{{ t('nav.checkAnother') }}</a>
           <a href="/batch-check">{{ t('nav.batchCheck') }}</a>
-          <a href="#readiness">{{ t('footer.platformReadiness') }}</a>
+          <a href="/#readiness">{{ t('footer.platformReadiness') }}</a>
         </div>
         <div>
           <h3>{{ t('footer.useCases') }}</h3>
-          <a href="#readiness">{{ t('tabs.ai') }}</a>
-          <a href="#readiness">{{ t('tabs.ecommerce') }}</a>
-          <a href="#readiness">{{ t('tabs.advertising') }}</a>
-          <a href="#readiness">{{ t('tabs.social') }}</a>
+          <a href="/#readiness">{{ t('tabs.ai') }}</a>
+          <a href="/#readiness">{{ t('tabs.ecommerce') }}</a>
+          <a href="/#readiness">{{ t('tabs.advertising') }}</a>
+          <a href="/#readiness">{{ t('tabs.social') }}</a>
         </div>
         <div>
           <h3>{{ t('footer.ipIntelligence') }}</h3>
-          <a href="#top">{{ t('footer.aiScore') }}</a>
+          <a href="/#top">{{ t('footer.riskScore') }}</a>
           <a href="/#information">{{ t('footer.ipInformation') }}</a>
           <a href="/#information">{{ t('footer.fraudSignals') }}</a>
         </div>
@@ -53,11 +53,10 @@ onBeforeUnmount(() => footerObserver?.disconnect())
           <h3>{{ t('footer.resources') }}</h3>
           <a href="/resources">{{ t('footer.resources') }}</a>
           <a href="/blog">{{ t('nav.blog') }}</a>
-          <a href="#faq">{{ t('footer.faq') }}</a>
+          <a href="/#faq">{{ t('footer.faq') }}</a>
         </div>
-        <div>
-          <h3>{{ t('footer.company') }}</h3>
-          <a href="#faq">{{ t('nav.partners') }}</a>
+        <div aria-hidden="true">
+          <!-- Reserved grid space; no partner page exists. -->
           <!-- Contact us 暂时隐藏，需要时取消注释即可 -->
           <!-- <a href="mailto:hello@ip-ready.example">{{ t('nav.contact') }}</a> -->
         </div>

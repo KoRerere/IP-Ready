@@ -47,35 +47,22 @@ function onDocumentKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') open.value = false
 }
 
-let hoverTimer: ReturnType<typeof setTimeout> | undefined
 const canHover = () => window.matchMedia('(hover: hover)').matches
 
-function openOnHover() {
-  if (!canHover()) return
-  clearTimeout(hoverTimer)
-  open.value = true
-}
-
-function closeOnHoverLeave() {
-  if (!canHover()) return
-  clearTimeout(hoverTimer)
-  hoverTimer = setTimeout(() => { open.value = false }, 120)
-}
 
 onMounted(() => {
   document.addEventListener('click', onDocumentClick)
   document.addEventListener('keydown', onDocumentKeydown)
 })
 onBeforeUnmount(() => {
-  clearTimeout(hoverTimer)
   document.removeEventListener('click', onDocumentClick)
   document.removeEventListener('keydown', onDocumentKeydown)
 })
 </script>
 
 <template>
-  <div ref="root" class="lang-switcher" :class="{ open }" @mouseenter="openOnHover" @mouseleave="closeOnHoverLeave">
-    <button class="lang-toggle" type="button" :aria-label="t('lang.switch')" :aria-expanded="open" @click="open = !open">
+  <div ref="root" class="lang-switcher" :class="{ open }">
+    <button class="lang-toggle" type="button" :aria-label="t('lang.switch')" :aria-expanded="open" aria-haspopup="listbox" @click.stop="open = !open" @keydown.down.prevent="open = true">
       <img class="lang-flag" :src="current.flag" alt="" />
       <span class="lang-label">{{ current.label }}</span>
       <svg class="lang-chevron" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>

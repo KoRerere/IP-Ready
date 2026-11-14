@@ -62,21 +62,10 @@ onUnmounted(() => {
   ctaObserver?.disconnect()
 })
 
-useHead({
+useSiteSeo({
+  path: '/resources',
   title: () => t('resources.metaTitle'),
-  meta: [
-    { name: 'description', content: () => t('resources.metaDescription') },
-    { property: 'og:title', content: () => t('resources.metaTitle') },
-    { property: 'og:description', content: () => t('resources.metaDescription') },
-  ],
-  link: [
-    { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
-    { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
-    {
-      rel: 'stylesheet',
-      href: 'https://fonts.googleapis.com/css2?family=Archivo:wght@500&family=Geist:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@700&display=swap',
-    },
-  ],
+  description: () => t('resources.metaDescription'),
 })
 </script>
 
@@ -288,12 +277,12 @@ useHead({
   z-index: 1;
   top: 14px;
   right: 14px;
-  padding: 5px 11px;
-  border: 1px solid rgba(23, 23, 23, .08);
+  padding: 6px 13px;
+  border: 1px solid rgba(255, 255, 255, .18);
   border-radius: 999px;
-  background: rgba(255, 255, 255, .92);
-  color: var(--deep-green);
-  font-size: 12px;
+  background: linear-gradient(115deg, #07864f 0%, #07857a 100%);
+  color: #fff;
+  font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
 }

@@ -1,3 +1,6 @@
+import { isValidIp } from '#shared/utils/ip-validation'
+import { isSuspectedExit } from '#shared/utils/ip-display'
+
 export interface IplocateResponse {
   ip: string
   country?: string | null
@@ -57,11 +60,6 @@ interface DeepSeekResponse {
   choices?: Array<{ message?: { content?: string } }>
 }
 
-export function isValidIp(value: string) {
-  const ipv4 = value.split('.')
-  if (ipv4.length === 4 && ipv4.every((part) => /^\d{1,3}$/.test(part) && Number(part) <= 255)) return true
-  return value.includes(':') && /^[0-9a-f:]+$/i.test(value)
-}
 
 export function normalizeIp(value?: string | null) {
   if (!value) return undefined
@@ -74,21 +72,92 @@ export function isPublicIp(ip?: string) {
   return !(ip === '::1' || ip === '0.0.0.0' || ip.startsWith('10.') || ip.startsWith('127.') || ip.startsWith('192.168.') || /^172\.(1[6-9]|2\d|3[01])\./.test(ip) || ip.startsWith('fc') || ip.startsWith('fd') || ip.startsWith('fe80:'))
 }
 
-function calculateRisk(data: IplocateResponse) {
+export function clampRiskScore(score: number) {
+  if (!Number.isFinite(score)) return 99.9
+  return Math.min(99.9, Math.max(0.1, Math.round(score * 10) / 10))
+}
+
+function networkRiskContribution(data: IplocateResponse) {
+  const type = `${data.asn?.type || data.company?.type || ""}`.toLowerCase()
+  if (type.includes("datacenter") || type.includes("hosting")) return 17.0
+  if (type.includes("mobile")) return 5.2
+  if (type.includes("residential") || type.includes("isp")) return 3.6
+  if (type.includes("business")) return 8.4
+  if (type.includes("education") || type.includes("government")) return 6.1
+  if (data.privacy?.is_hosting) return 15.8
+  return 6.4
+}
+
+function providerRiskContribution(data: IplocateResponse) {
+  const type = `${data.asn?.type || data.company?.type || ""}`.toLowerCase()
+  const provider = `${data.asn?.name || data.company?.name || data.hosting?.provider || ""}`.toLowerCase()
+  if (type.includes("datacenter") || type.includes("hosting") || /cloud|vps|server|hosting|datacenter/.test(provider)) return 3.8
+  if (type.includes("business")) return 1.8
+  if (type.includes("residential") || type.includes("isp") || type.includes("mobile")) return 0.6
+  return 1.1
+}
+
+function anonymizerRiskContribution(data: IplocateResponse) {
   const privacy = data.privacy
-  if (privacy?.is_bogon) return 100
   let score = 0
-  if (privacy?.is_abuser) score += 60
-  if (privacy?.is_tor) score += 50
-  else if (privacy?.is_proxy || privacy?.is_vpn) score += 35
-  if (privacy?.is_hosting) score += 20
-  if (privacy?.is_icloud_relay) score += 10
-  if (data.is_anycast) score += 5
-  return Math.min(score, 100)
+  if (privacy?.is_tor) score = 36.8
+  else if (privacy?.is_proxy && privacy?.is_vpn) score = 31.6
+  else if (privacy?.is_proxy) score = 28.4
+  else if (privacy?.is_vpn) score = 24.7
+  if (privacy?.is_anonymous) score += 4.2
+  return score
+}
+
+function abuseRiskContribution(data: IplocateResponse, networkRisk: number, anonymizerRisk: number) {
+  if (!data.privacy?.is_abuser) return 0
+  // The upstream response exposes a boolean only, so use network/anonymizer
+  // pressure as a continuous severity proxy instead of inventing abuse counts.
+  return 50.2 + networkRisk * 0.24 + anonymizerRisk * 0.08
+}
+
+function compatibilityBand(data: IplocateResponse): [number, number] {
+  const privacy = data.privacy
+  // The old weights are used ONLY to select the existing decision band.
+  // The numeric score within it comes from the graded contributions below.
+  const legacy = (privacy?.is_abuser ? 60 : 0)
+    + (privacy?.is_tor ? 50 : privacy?.is_proxy || privacy?.is_vpn ? 35 : 0)
+    + (privacy?.is_hosting ? 20 : 0)
+    + (privacy?.is_icloud_relay ? 10 : 0)
+    + (data.is_anycast ? 5 : 0)
+  if (legacy <= 30) return [0.1, 30]
+  if (legacy < 40) return [30.1, 39.9]
+  if (legacy <= 70) return [40, 70]
+  if (legacy < 75) return [70.1, 74.9]
+  return [75, 99.9]
+}
+
+function calibrateRiskBand(score: number, lower: number, upper: number) {
+  // Smooth shoulders avoid both threshold crossings and a pile-up at a hard cap.
+  // Preserve the existing 30 (emoji), 40/70 (level), and 75 (API fallback) decisions.
+  const shoulder = Math.min(3, (upper - lower) / 3)
+  if (score < lower + shoulder) return lower + shoulder * Math.exp((score - lower - shoulder) / shoulder)
+  if (score > upper - shoulder) return upper - shoulder * Math.exp((upper - shoulder - score) / shoulder)
+  return score
+}
+
+export function calculateRisk(data: IplocateResponse) {
+  if (data.privacy?.is_bogon) return 99.9
+  const networkRisk = networkRiskContribution(data)
+  const anonymizerRisk = anonymizerRiskContribution(data)
+  const score = networkRisk
+    + providerRiskContribution(data)
+    + anonymizerRisk
+    + abuseRiskContribution(data, networkRisk, anonymizerRisk)
+    + (data.privacy?.is_hosting ? 11.8 + networkRisk * 0.025 + anonymizerRisk * 0.015 : 0)
+    + (data.privacy?.is_icloud_relay ? 6.4 + networkRisk * 0.1 + anonymizerRisk * 0.06 : 0)
+    + (data.is_anycast ? 3.2 + networkRisk * 0.04 + providerRiskContribution(data) * 0.15 : 0)
+  const [lower, upper] = compatibilityBand(data)
+  return clampRiskScore(calibrateRiskBand(score, lower, upper))
 }
 
 function normalizeIntelligence(data: IplocateResponse): IpIntelligence {
   const asnNumber = Number(data.asn?.asn?.replace(/^AS/i, ''))
+  const network = data.asn?.name ? data.asn : data.company
   return {
     ip: data.ip,
     proxy: Boolean(data.privacy?.is_proxy),
@@ -98,16 +167,16 @@ function normalizeIntelligence(data: IplocateResponse): IpIntelligence {
     hosting: Boolean(data.privacy?.is_hosting),
     recent_abuse: Boolean(data.privacy?.is_abuser),
     icloud_relay: Boolean(data.privacy?.is_icloud_relay),
-    ISP: data.asn?.name || data.company?.name || undefined,
-    organization: data.company?.name || data.asn?.name || undefined,
+    ISP: network?.name || undefined,
+    organization: network?.name || undefined,
     ASN: Number.isFinite(asnNumber) ? asnNumber : undefined,
-    host: data.company?.domain || data.asn?.domain || undefined,
+    host: network?.domain || undefined,
     ip_range: data.asn?.route || data.hosting?.network || undefined,
     country: data.country || undefined,
     country_code: data.country_code || undefined,
     city: data.city || undefined,
     region: data.subdivision || undefined,
-    connection_type: data.company?.type || data.asn?.type || undefined,
+    connection_type: network?.type || undefined,
     latitude: data.latitude ?? undefined,
     longitude: data.longitude ?? undefined,
     zip_code: data.postal_code || undefined,
@@ -118,10 +187,11 @@ function normalizeIntelligence(data: IplocateResponse): IpIntelligence {
 
 function fallbackAnalysis(data: IpIntelligence): IpAnalysis {
   const anonymous = data.proxy || data.vpn || data.tor
+  const suspectedExit = isSuspectedExit(data)
   return {
     title: data.risk_score >= 75 ? 'Your Network Shows Elevated Risk.' : data.risk_score >= 40 ? 'Your Network Needs Attention.' : 'Your Network Looks Healthy.',
-    summary: anonymous ? 'An anonymizing network signal was detected, which may trigger additional verification.' : 'No active proxy, VPN, or Tor signal was detected in the current scan.',
-    concern: data.recent_abuse ? 'This IP address appears on an abuse blocklist.' : data.hosting ? 'Hosting or datacenter network characteristics may affect verification on some platforms.' : 'No major network concern was identified from the available signals.',
+    summary: anonymous ? 'An anonymizing network signal was detected, which may trigger additional verification.' : suspectedExit ? 'No active proxy, VPN, or Tor signal was detected, but this hosting network is a suspected exit signal.' : 'No active proxy, VPN, or Tor signal was detected in the current scan.',
+    concern: data.recent_abuse ? 'This IP address appears on an abuse blocklist.' : suspectedExit ? 'This IP is in a datacenter range and may be a proxy or VPN exit, even though it was not found on known VPN exit lists.' : data.hosting ? 'Hosting or datacenter network characteristics may affect verification on some platforms.' : 'No major network concern was identified from the available signals.',
   }
 }
 
@@ -146,7 +216,12 @@ async function createAiAnalysis(data: IpIntelligence, config: ReturnType<typeof 
     const content = response.choices?.[0]?.message?.content
     if (!content) return fallback
     const parsed = JSON.parse(content) as Partial<IpAnalysis>
-    return { title: parsed.title || fallback.title, summary: parsed.summary || fallback.summary, concern: parsed.concern || fallback.concern }
+    const suspectedExit = isSuspectedExit(data)
+    return {
+      title: parsed.title || fallback.title,
+      summary: suspectedExit ? fallback.summary : parsed.summary || fallback.summary,
+      concern: suspectedExit && !data.recent_abuse ? fallback.concern : parsed.concern || fallback.concern,
+    }
   } catch {
     return fallback
   }

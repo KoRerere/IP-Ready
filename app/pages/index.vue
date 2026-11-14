@@ -1,5 +1,9 @@
 <script setup lang="ts">
+import { EVALUATED_PLATFORMS } from '#shared/utils/platforms'
+import { analysisFor, formatRiskScore, isSuspectedExit, networkTypeLabel, riskLevelFor } from '#shared/utils/ip-display'
+import { renderHomeGuides } from '#shared/utils/home-guides'
 import { computePlatformReadiness, type PlatformReadiness, type ReadinessContext } from '#shared/utils/platform-readiness'
+import { TriangleAlert } from 'lucide-vue-next'
 
 type PlatformFilter = 'all' | 'ai' | 'ecommerce' | 'advertising' | 'social'
 
@@ -47,17 +51,22 @@ interface IpScanResult {
 }
 
 const { locale, t } = useI18n()
+const homeGuidesHtml = computed(() => renderHomeGuides(locale.value))
+const homepageTitle = 'IP Ready — Free IP Risk Score Checker & Reputation Lookup'
 const activeFilter = ref<PlatformFilter>('all')
 const activeFaq = ref(0)
 const activeFeature = ref(0)
 const copied = ref(false)
-const copyToastMessage = ref(t('misc.copied'))
+const copyToastMessage = ref('misc.copied')
 const platformHasSwapped = ref(false)
 const animatedPlatformScores = ref<number[]>([])
 const scan = ref<IpScanResult | null>(null)
 const scanError = ref('')
 const scanPending = ref(true)
-const userAgent = ref('Detecting browser…')
+const { userAgent, browserInfo } = useBrowserInfo()
+const analysis = computed(() => scan.value ? analysisFor(scan.value, t) : null)
+const suspectedExit = computed(() => scan.value ? isSuspectedExit(scan.value) : false)
+const networkType = computed(() => networkTypeLabel(scan.value?.connection_type, t, scan.value?.hosting))
 const currentTime = ref(new Date())
 
 const supportedServices = [
@@ -97,47 +106,16 @@ let infoTableTextGestureResetTimer: ReturnType<typeof setTimeout> | undefined
 
 const featureDuration = 5000
 
-const platformIcon = (filename: string) => `/assets/icons/platform/${filename}`
-const claudePlatform: PlatformCard = { name: 'Claude', icon: platformIcon('IP_ic_claude.svg') }
-const chatGptPlatform: PlatformCard = { name: 'ChatGPT', icon: platformIcon('IP_ic_chatgpt.svg') }
-const amazonPlatform: PlatformCard = { name: 'Amazon', icon: platformIcon('IP_ic_Amazon.svg') }
-const ebayPlatform: PlatformCard = { name: 'Ebay', icon: platformIcon('IP_ic_eBay.svg') }
-
 const platformGroups: Record<PlatformFilter, PlatformCard[]> = {
-  all: [claudePlatform, chatGptPlatform, amazonPlatform, ebayPlatform, { name: 'Binance', icon: platformIcon('IP_ic_binance.svg') }],
-  ai: [
-    claudePlatform,
-    chatGptPlatform,
-    { name: 'Gemini', icon: platformIcon('IP_ic_gemini.svg') },
-    { name: 'Perplexity', icon: platformIcon('IP_ic_perplexity.svg') },
-    { name: 'Grok', icon: platformIcon('IP_ic_grok.svg') },
-  ],
-  ecommerce: [
-    amazonPlatform,
-    ebayPlatform,
-    { name: 'Shopify', icon: platformIcon('IP_ic_Shopify.svg') },
-    { name: 'Etsy', icon: platformIcon('IP_ic_Etsy.svg') },
-    { name: 'AliExpress', icon: platformIcon('IP_ic_AliExpress.svg') },
-  ],
-  advertising: [
-    { name: 'Facebook Ads', icon: platformIcon('IP_ic_Facebook.svg') },
-    { name: 'Instagram Ads', icon: platformIcon('IP_ic_instagram.svg') },
-    { name: 'TikTok Ads', icon: platformIcon('IP_ic_tiktok.svg') },
-    { name: 'YouTube Ads', icon: platformIcon('IP_ic_youtube.svg') },
-    { name: 'LinkedIn Ads', icon: platformIcon('IP_ic_linkedin.svg') },
-  ],
-  social: [
-    { name: 'Facebook', icon: platformIcon('IP_ic_Facebook.svg') },
-    { name: 'Instagram', icon: platformIcon('IP_ic_instagram.svg') },
-    { name: 'TikTok', icon: platformIcon('IP_ic_tiktok.svg') },
-    { name: 'Reddit', icon: platformIcon('IP_ic_reddit.svg') },
-    { name: 'Discord', icon: platformIcon('IP_ic_discord.svg') },
-  ],
+  all: [...EVALUATED_PLATFORMS],
+  ai: EVALUATED_PLATFORMS.filter((p) => p.category === 'ai'),
+  ecommerce: EVALUATED_PLATFORMS.filter((p) => p.category === 'ecommerce'),
+  advertising: [],
+  social: [],
 }
 
 const riskScore = computed(() => scan.value?.risk_score ?? 0)
-const healthScore = computed(() => scan.value ? Math.max(0, 100 - riskScore.value) : 0)
-const riskLevel = computed(() => riskScore.value > 70 ? 'high' : riskScore.value >= 40 ? 'medium' : 'low')
+const riskLevel = computed(() => riskLevelFor(riskScore.value))
 const riskLabel = computed(() => riskLevel.value === 'high' ? t('risk.high') : riskLevel.value === 'medium' ? t('risk.medium') : t('risk.low'))
 const countryName = computed(() => {
   const code = scan.value?.country_code
@@ -176,6 +154,78 @@ function readinessCaption(platform: PlatformCard) {
 function readinessHits(platform: PlatformCard) {
   return platform.readiness?.hits.map((id) => t(`signal.${id}`)).join(' · ') ?? ''
 }
+const openPlatformReasons = reactive<Record<string, boolean>>({})
+const tappedPlatformReasons = reactive<Record<string, boolean>>({})
+const platformReasonSides = reactive<Record<string, 'top' | 'bottom'>>({})
+let platformReasonPositionFrame: number | undefined
+
+function platformReasonId(name: string) {
+  return `platform-reason-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
+}
+
+function positionPlatformReason(name: string, element: HTMLElement) {
+  const tooltip = element.querySelector<HTMLElement>('.platform-reason-tooltip')
+  if (!tooltip) return
+  const headerBottom = document.querySelector('.site-header')?.getBoundingClientRect().bottom ?? 0
+  const viewportTop = Math.max(window.visualViewport?.offsetTop ?? 0, headerBottom)
+  const spaceAbove = element.getBoundingClientRect().top - viewportTop
+  platformReasonSides[name] = spaceAbove >= tooltip.offsetHeight + 9 + 8 ? 'top' : 'bottom'
+}
+
+function preparePlatformReason(event: Event, name: string) {
+  tappedPlatformReasons[name] = false
+  positionPlatformReason(name, event.currentTarget as HTMLElement)
+}
+
+function updatePlatformReasonPositions() {
+  document.querySelectorAll<HTMLElement>('#readiness .platform-reason').forEach((element) => {
+    if (element.dataset.platform) positionPlatformReason(element.dataset.platform, element)
+  })
+}
+
+function schedulePlatformReasonPositions() {
+  if (platformReasonPositionFrame !== undefined) return
+  platformReasonPositionFrame = requestAnimationFrame(() => {
+    platformReasonPositionFrame = undefined
+    updatePlatformReasonPositions()
+  })
+}
+
+function togglePlatformReason(event: MouseEvent, name: string) {
+  event.stopPropagation()
+  const element = (event.currentTarget as HTMLElement).closest<HTMLElement>('.platform-reason')
+  if (element) positionPlatformReason(name, element)
+  tappedPlatformReasons[name] = true
+  openPlatformReasons[name] = !openPlatformReasons[name]
+}
+
+function dismissPlatformReason(name: string) {
+  openPlatformReasons[name] = false
+  tappedPlatformReasons[name] = true
+}
+
+function closePlatformReasons() {
+  for (const platform of displayedPlatforms.value) dismissPlatformReason(platform.name)
+}
+
+function handlePlatformReasonKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') closePlatformReasons()
+}
+
+onMounted(() => {
+  document.addEventListener('click', closePlatformReasons)
+  document.addEventListener('keydown', handlePlatformReasonKeydown)
+  window.addEventListener('scroll', schedulePlatformReasonPositions, { capture: true, passive: true })
+  window.addEventListener('resize', schedulePlatformReasonPositions)
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('click', closePlatformReasons)
+  document.removeEventListener('keydown', handlePlatformReasonKeydown)
+  window.removeEventListener('scroll', schedulePlatformReasonPositions, true)
+  window.removeEventListener('resize', schedulePlatformReasonPositions)
+  if (platformReasonPositionFrame !== undefined) cancelAnimationFrame(platformReasonPositionFrame)
+})
+
 function quickReadFor(name: string) {
   if (!scan.value) return '--'
   return computePlatformReadiness(name, readinessContext.value)?.level === 'ready' ? t('report.good') : t('report.poor')
@@ -191,14 +241,14 @@ const localTime = computed(() => {
 // AI 分析标题前的表情：检测中不显示，状态好 👍，状态差 ⚠️
 const analysisEmoji = computed(() => {
   if (!scan.value) return ''
-  return healthScore.value >= 70 ? '👍' : '⚠️'
+  return riskScore.value <= 30 ? '👍' : '⚠️'
 })
 
 async function loadIpScan() {
   scanPending.value = true
   scanError.value = ''
   try {
-    scan.value = await $fetch<IpScanResult>('/api/ip-check')
+    scan.value = await $fetch<IpScanResult>('/api/ip-check', { timeout: 30_000, retry: 0 })
   } catch (error) {
     const apiError = error as { data?: { statusMessage?: string }; message?: string }
     scanError.value = apiError.data?.statusMessage || apiError.message || t('misc.scanFailed')
@@ -260,18 +310,57 @@ function preventBottomOverscroll(event: WheelEvent) {
   if (atBottom) event.preventDefault()
 }
 
-useHead({
-  title: () => t('meta.title'),
-  meta: [
-    {
-      name: 'description',
-      content: () => t('meta.description'),
+const homepageSocial = computed(() => siteSocialMeta({
+  path: '/',
+  title: homepageTitle,
+  description: t('meta.description'),
+}))
+
+const homepageFaqJsonLd = computed(() => ({
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [1, 2, 3, 4, 5].map((n) => ({
+    '@type': 'Question',
+    name: t(`faq.q${n}`),
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: t(`faq.a${n}`),
     },
-    { property: 'og:title', content: () => t('meta.title') },
-    { property: 'og:description', content: () => t('meta.description') },
-    { property: 'og:type', content: 'website' },
+  })),
+}))
+
+useHead(() => ({
+  title: homepageTitle,
+  meta: [
+    { name: 'description', content: t('meta.description') },
+    ...homepageSocial.value.meta,
+  ],
+  script: [
+    {
+      key: 'homepage-webapplication-schema',
+      type: 'application/ld+json' as 'application/json',
+      innerHTML: JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'WebApplication',
+        name: 'IP Ready',
+        url: 'https://ipready.cc/',
+        applicationCategory: 'UtilitiesApplication',
+        description: t('meta.description'),
+        offers: {
+          '@type': 'Offer',
+          price: '0',
+          priceCurrency: 'USD',
+        },
+      }),
+    },
+    {
+      key: 'homepage-faq-schema',
+      type: 'application/ld+json' as 'application/json',
+      innerHTML: JSON.stringify(homepageFaqJsonLd.value),
+    },
   ],
   link: [
+    ...homepageSocial.value.link,
     { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
     { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
     {
@@ -279,10 +368,9 @@ useHead({
       href: 'https://fonts.googleapis.com/css2?family=Archivo:wght@500&family=Geist:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@700&display=swap',
     },
   ],
-})
+}))
 
 onMounted(() => {
-  userAgent.value = navigator.userAgent
   void loadIpScan()
   const clockTimer = window.setInterval(() => { currentTime.value = new Date() }, 1000)
   onBeforeUnmount(() => window.clearInterval(clockTimer))
@@ -368,7 +456,7 @@ onBeforeUnmount(() => {
   revealTimers.forEach(clearTimeout)
 })
 
-async function copyValue(value: string, message = t('misc.copied')) {
+async function copyValue(value: string, message = 'misc.copied') {
   await navigator.clipboard.writeText(value)
   copyToastMessage.value = message
   copied.value = true
@@ -402,7 +490,7 @@ function copyDeviceValue(event: MouseEvent) {
 
 function copyIp() {
   if (!scan.value?.ip) return
-  return copyValue(scan.value.ip, t('misc.ipCopied'))
+  return copyValue(scan.value.ip, 'misc.ipCopied')
 }
 
 function selectPlatformFilter(filter: PlatformFilter) {
@@ -561,6 +649,9 @@ function stopInfoTableDrag(event: PointerEvent) {
           <p class="hero-subtitle reveal">
             {{ t('hero.subtitle') }}
           </p>
+          <p class="hero-ssr-summary">
+            {{ t('meta.description') }}
+          </p>
           <div class="hero-points reveal" aria-label="Product benefits">
             <span><CurrentIcon class="hero-point-icon hero-point-shield" src="/assets/figma/imgVector4.svg" />{{ t('hero.pointScore') }}</span>
             <span><CurrentIcon class="hero-point-icon hero-point-data" src="/assets/figma/imgVector5.svg" />{{ t('hero.pointData') }}</span>
@@ -590,7 +681,7 @@ function stopInfoTableDrag(event: PointerEvent) {
 
             <div class="ip-facts">
               <div><b>{{ scan?.ISP || t('report.detecting') }}</b><span>{{ t('report.isp') }}</span></div>
-              <div><b>{{ scan?.connection_type || t('misc.unknown') }}</b><span>{{ t('report.networkType') }}</span></div>
+              <div><b>{{ networkType }}</b><span>{{ t('report.networkType') }}</span></div>
               <div><b>{{ scan?.timezone || t('misc.unknown') }}</b><span>{{ t('report.timezone') }}</span></div>
               <div><b>{{ coordinates }}</b><span>{{ t('report.location') }}</span></div>
             </div>
@@ -600,11 +691,11 @@ function stopInfoTableDrag(event: PointerEvent) {
                 <span class="ai-logo"><img src="/assets/figma/imgLogo.svg" alt="" /></span>
                 <b>{{ t('report.aiAnalysis') }}</b>
               </div>
-              <h2><span v-if="analysisEmoji" aria-hidden="true">{{ analysisEmoji }}</span> {{ scan?.analysis.title || t('report.analyzing') }}</h2>
-              <p>{{ scan?.analysis.summary || t('report.checkingSignals') }}</p>
-              <p><b>{{ t('report.mainConcern') }}</b> {{ scan?.analysis.concern || t('report.analysisPending') }}</p>
+              <h2><span v-if="analysisEmoji" aria-hidden="true">{{ analysisEmoji }}</span> {{ analysis?.title || t('report.analyzing') }}</h2>
+              <p>{{ analysis?.summary || t('report.checkingSignals') }}</p>
+              <p><b>{{ t('report.mainConcern') }}</b>{{ ' ' + (analysis?.concern || t('report.analysisPending')) }}</p>
               <div class="analysis-checks">
-                <span><CurrentIcon class="analysis-check-icon" src="/assets/figma/imgVector3.svg" />{{ scan?.connection_type || t('report.networkPending') }}</span>
+                <span><CurrentIcon class="analysis-check-icon" src="/assets/figma/imgVector3.svg" />{{ scan ? networkType : t('report.networkPending') }}</span>
                 <span><CurrentIcon class="analysis-check-icon" src="/assets/figma/imgVector3.svg" />{{ scan?.city ? t('report.locationAvailable') : t('report.locationLimited') }}</span>
                 <span><CurrentIcon class="analysis-check-icon" src="/assets/figma/imgVector3.svg" />{{ t('report.iplocateChecked') }}</span>
               </div>
@@ -613,24 +704,22 @@ function stopInfoTableDrag(event: PointerEvent) {
 
           <aside class="score-panel">
             <p class="score-label">{{ t('report.score') }}</p>
-            <div class="score-value"><strong>{{ scan ? healthScore : '--' }}</strong><span>/100</span><em :class="scan ? `risk-${riskLevel}` : ''">{{ scan ? riskLabel : t('report.scanning') }}</em></div>
+            <div class="score-value"><strong :class="scan ? `risk-number-${riskLevel}` : ''">{{ scan ? formatRiskScore(riskScore) : '--' }}</strong><span>/ 100</span><em :class="scan ? `risk-${riskLevel}` : ''">{{ scan ? riskLabel : t('report.scanning') }}</em></div>
             <div class="score-divider"></div>
             <p class="platform-label">{{ t('report.quickRead') }}</p>
             <div class="quick-platforms">
-              <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_claude.svg')" alt="" /></span>Claude</span><b>{{ quickReadFor('Claude') }}</b></div>
-              <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_chatgpt.svg')" alt="" /></span>ChatGPT</span><b>{{ quickReadFor('ChatGPT') }}</b></div>
-              <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_gemini.svg')" alt="" /></span>Gemini</span><b>{{ quickReadFor('Gemini') }}</b></div>
-              <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_Amazon.svg')" alt="" /></span>Amazon</span><b>{{ quickReadFor('Amazon') }}</b></div>
-              <div><span><span class="quick-icon"><img class="simple-glyph" :src="platformIcon('IP_ic_tiktok_shop.svg')" alt="" /></span>Tiktok Shop</span><b>{{ quickReadFor('Tiktok Shop') }}</b></div>
+              <div v-for="platform in EVALUATED_PLATFORMS" :key="platform.name"><span><span class="quick-icon"><img class="simple-glyph" :src="platform.icon" alt="" /></span>{{ platform.name }}</span><b>{{ quickReadFor(platform.name) }}</b></div>
             </div>
             <a class="platform-link" href="#readiness">{{ t('report.otherPlatforms') }} <CurrentIcon class="platform-arrow-icon" src="/assets/figma/imgVector29.svg" /></a>
           </aside>
           </div>
         </article>
+
       </section>
 
-      <section class="logo-rail" aria-label="Supported services">
-        <div class="logo-track">
+      <section class="logo-rail" :aria-label="t('report.popularPlatforms')">
+        <p class="logo-rail-label">{{ t('report.popularPlatforms') }}</p>
+      <div class="logo-track">
           <div class="logo-set">
             <img v-for="service in supportedServices" :key="service.name" :src="service.src" :alt="service.name" />
           </div>
@@ -644,7 +733,7 @@ function stopInfoTableDrag(event: PointerEvent) {
         <section class="readiness" id="readiness">
         <div class="readiness-inner">
           <div class="section-head">
-            <p class="section-index"><span>2</span>{{ t('readiness.index') }}</p>
+            <p class="section-index"><span>1</span>{{ t('readiness.index') }}</p>
             <h2>{{ t('readiness.title') }}</h2>
             <p>{{ t('readiness.subtitle') }}</p>
             <div ref="tabsEl" class="tabs" role="tablist" aria-label="Platform categories" @mouseleave="syncTabsPill">
@@ -660,6 +749,7 @@ function stopInfoTableDrag(event: PointerEvent) {
           <Transition name="platform-swap" mode="out-in" @before-enter="preparePlatformScores" @enter="animatePlatformScores">
             <div :key="activeFilter" class="platform-grid" :class="{ 'is-swapped': platformHasSwapped }" @mouseleave="hidePlatformPill">
               <span class="platform-morph-pill" :class="{ visible: platformPill.visible, snap: platformPill.snap }" :style="{ transform: `translate(${platformPill.x}px, ${platformPill.y}px)`, width: `${platformPill.w}px`, height: `${platformPill.h}px` }" aria-hidden="true"></span>
+              <p v-if="!displayedPlatforms.length" class="platform-empty">{{ t('platform.emptyCategory') }}</p>
               <template v-for="(platform, index) in displayedPlatforms" :key="platform.name">
                 <article
                   class="platform-card"
@@ -672,10 +762,34 @@ function stopInfoTableDrag(event: PointerEvent) {
                       {{ platform.name }}
                     </span>
                       <CurrentIcon v-if="platform.readiness?.level === 'ready'" class="check-icon" src="/assets/figma/imgVector2.svg" :label="t('platform.ready')" />
-                      <span v-else-if="platform.readiness" class="platform-flag" :class="platform.readiness.level" role="img" :aria-label="readinessCaption(platform)">!</span>
+                      <span
+                        v-else-if="platform.readiness"
+                        class="platform-reason"
+                        :class="{ open: openPlatformReasons[platform.name], tapped: tappedPlatformReasons[platform.name] }"
+                        :data-platform="platform.name"
+                        :data-side="platformReasonSides[platform.name] ?? 'top'"
+                        @mouseenter="preparePlatformReason($event, platform.name)"
+                        @focusin="preparePlatformReason($event, platform.name)"
+                        @mouseleave="tappedPlatformReasons[platform.name] = false"
+                        @keydown.esc="dismissPlatformReason(platform.name)"
+                      >
+                        <button
+                          class="platform-reason-trigger"
+                          :class="platform.readiness.level"
+                          type="button"
+                          :aria-label="readinessCaption(platform)"
+                          :aria-expanded="Boolean(openPlatformReasons[platform.name])"
+                          :aria-describedby="platformReasonId(platform.name)"
+                          @click="togglePlatformReason($event, platform.name)"
+                        ><TriangleAlert :size="15" :stroke-width="2.4" aria-hidden="true" /></button>
+                        <span :id="platformReasonId(platform.name)" class="platform-reason-tooltip" role="tooltip">
+                          <strong>{{ readinessCaption(platform) }}</strong>
+                          <span>{{ readinessHits(platform) }}</span>
+                        </span>
+                      </span>
                   </div>
                   <div class="platform-info">
-                    <div class="platform-score-block">
+                    <div class="platform-score-block" :class="platform.readiness ? `level-${platform.readiness.level}` : ''">
                       <div class="platform-score" :aria-label="`${platform.readiness?.score ?? 0} out of 100`" :title="readinessHits(platform)">
                         <b aria-hidden="true">{{ scan ? (animatedPlatformScores[index] ?? platform.readiness?.score ?? 0) : '--' }}</b>
                         <span aria-hidden="true">/100</span>
@@ -696,19 +810,22 @@ function stopInfoTableDrag(event: PointerEvent) {
             </div>
           </Transition>
 
-          <div class="metric-grid">
-            <div><strong>12</strong><span>{{ t('metrics.signals') }}</span></div>
-            <div><strong>{{ t('metrics.live') }}</strong><span>{{ t('metrics.iplocate') }}</span></div>
-            <div><strong>8</strong><span>{{ t('metrics.platforms') }}</span></div>
-            <div><strong>1</strong><span>{{ t('metrics.aiPass') }}</span></div>
-          </div>
+          <MetricStrip
+            class="home-metrics"
+            :items="[
+              { value: 12, label: t('metrics.signals') },
+              { value: t('metrics.live'), label: t('metrics.iplocate') },
+              { value: EVALUATED_PLATFORMS.length, label: t('metrics.platforms') },
+              { value: 1, label: t('metrics.aiPass') },
+            ]"
+          />
         </div>
         </section>
 
         <section class="information section-panel" id="information">
           <div class="information-inner">
         <div class="section-head">
-          <p class="section-index"><span>1</span>{{ t('info.index') }}</p>
+          <p class="section-index"><span>2</span>{{ t('info.index') }}</p>
           <h2>{{ t('info.title') }}</h2>
           <p>{{ t('info.subtitle') }}</p>
         </div>
@@ -725,7 +842,7 @@ function stopInfoTableDrag(event: PointerEvent) {
               <div><dt>{{ t('info.coordinates') }}</dt><dd :class="{ copyable: coordinates !== t('misc.na') }" class="accent-value">{{ coordinates }}</dd></div>
               <div><dt>{{ t('info.isp') }}</dt><dd :class="{ copyable: hasScanValue(scan?.ISP) }">{{ scan?.ISP || t('misc.na') }}</dd></div>
               <div><dt>{{ t('info.organization') }}</dt><dd :class="{ copyable: hasScanValue(scan?.organization) }">{{ scan?.organization || t('misc.na') }}</dd></div>
-              <div><dt>{{ t('info.connection') }}</dt><dd :class="{ copyable: hasScanValue(scan?.connection_type) }">{{ scan?.connection_type || t('misc.na') }}</dd></div>
+              <div><dt>{{ t('info.connection') }}</dt><dd :class="{ copyable: hasScanValue(scan?.connection_type) }">{{ scan ? networkType : t('misc.na') }}</dd></div>
               <div><dt>{{ t('info.asn') }}</dt><dd :class="{ copyable: hasScanValue(scan?.ASN) }" class="accent-value">{{ scan?.ASN ? `AS${scan.ASN}` : t('misc.na') }}</dd></div>
             </dl>
           </article>
@@ -743,22 +860,24 @@ function stopInfoTableDrag(event: PointerEvent) {
             <h3><img class="device-card-icon" src="/assets/figma/icon-browser.png" alt="" />{{ t('info.browser') }}</h3>
             <dl>
               <div><dt>{{ t('info.userAgent') }}</dt><dd class="copyable">{{ userAgent }}</dd></div>
-              <div><dt>{{ t('info.detectedBrowser') }}</dt><dd :class="{ copyable: hasScanValue(scan?.browser) }">{{ scan?.browser || t('misc.na') }}</dd></div>
-              <div><dt>{{ t('info.os') }}</dt><dd :class="{ copyable: hasScanValue(scan?.operating_system) }">{{ scan?.operating_system || t('misc.na') }}</dd></div>
-              <div><dt>{{ t('info.device') }}</dt><dd :class="{ copyable: hasScanValue(scan?.device_brand) || hasScanValue(scan?.device_model) }">{{ [scan?.device_brand, scan?.device_model].filter(Boolean).join(' ') || t('misc.na') }}</dd></div>
+              <div><dt>{{ t('info.detectedBrowser') }}</dt><dd :class="{ copyable: hasScanValue(browserInfo.browser) }">{{ browserInfo.browser || t('misc.na') }}</dd></div>
+              <div><dt>{{ t('info.os') }}</dt><dd :class="{ copyable: hasScanValue(browserInfo.os) }">{{ browserInfo.os || t('misc.na') }}</dd></div>
+              <div><dt>{{ t('info.device') }}</dt><dd :class="{ copyable: hasScanValue(browserInfo.device) }">{{ browserInfo.device ? t(`device.${browserInfo.device}`) : t('misc.na') }}</dd></div>
             </dl>
           </article>
         </div>
 
         <div class="status-grid">
           <article><strong>{{ scan?.proxy ? t('status.detected') : t('status.notDetected') }}</strong><span>{{ t('status.proxy') }}</span></article>
-          <article><strong>{{ scan?.vpn || scan?.tor ? t('status.detected') : t('status.notDetected') }}</strong><span>{{ t('status.vpnTor') }}</span></article>
-          <article><strong>{{ scan?.recent_abuse ? t('status.detected') : t('status.notDetected') }}</strong><span>{{ t('status.recentAbuse') }}</span></article>
-          <article class="risk-card"><em :class="scan ? `risk-${riskLevel}` : 'detecting'">{{ scan ? riskLabel : t('status.detecting') }}</em><strong>{{ scan ? riskScore : '--' }} / 100</strong><span>{{ t('status.riskScore') }}</span></article>
+          <article :class="{ 'suspected-exit-card': suspectedExit }"><strong :class="{ 'suspected-exit-text': suspectedExit }">{{ suspectedExit ? t('status.suspectedExit') : scan?.vpn || scan?.tor ? t('status.detected') : t('status.notDetected') }}</strong><span>{{ t('status.vpnTor') }}</span><small v-if="suspectedExit">{{ t('status.suspectedExitHelp') }}</small></article>
+          <article><strong>{{ scan?.recent_abuse ? t('status.detected') : t('status.notDetected') }}</strong><span>{{ t('status.recentAbuse') }}</span><small v-if="scan?.recent_abuse">{{ t('status.abuseListed') }}</small></article>
+          <article class="risk-card"><em :class="scan ? `risk-${riskLevel}` : 'detecting'">{{ scan ? riskLabel : t('status.detecting') }}</em><strong :class="scan ? `risk-number-${riskLevel}` : ''">{{ scan ? formatRiskScore(riskScore) : '--' }} / 100</strong><span>{{ t('status.riskScore') }}</span><small>{{ t('status.riskHelp') }}</small></article>
         </div>
           </div>
         </section>
       </div>
+
+      <section class="home-guides" id="guides" aria-labelledby="guides-title" v-html="homeGuidesHtml" />
 
       <section class="faq-section" id="faq">
         <div class="faq-motion" aria-hidden="true">
@@ -790,5 +909,27 @@ function stopInfoTableDrag(event: PointerEvent) {
 
     <AppFooter />
 
-    <div class="copy-toast" :class="{ show: copied }" role="status" aria-live="polite">{{ copyToastMessage }}</div>
+    <div class="copy-toast" :class="{ show: copied }" role="status" aria-live="polite">{{ t(copyToastMessage) }}</div>
 </template>
+
+<style scoped>
+.platform-reason { flex: none; display: inline-flex; position: relative; }
+.platform-reason-trigger { color: #fff; cursor: pointer; border: 0; border-radius: 6px; justify-content: center; align-items: center; width: 24px; height: 24px; padding: 0; display: inline-flex; }
+.platform-reason-trigger.caution { background: #d98719; }
+.platform-reason-trigger.risky { background: #c93636; }
+.platform-reason-trigger:focus-visible { outline-offset: 2px; outline: 3px solid #1677ff47; }
+.platform-reason-tooltip { z-index: 20; color: #4a4a4a; opacity: 0; visibility: hidden; pointer-events: none; background: #fff; border: 1px solid #dfe2e7; border-radius: 8px; flex-direction: column; gap: 7px; width: min(280px, 100vw - 48px); padding: 12px 14px; font-size: 12px; font-weight: 400; line-height: 17px; transition: opacity .16s, transform .16s, visibility .16s; display: flex; position: absolute; bottom: calc(100% + 9px); right: 0; transform: translateY(4px); box-shadow: 0 12px 32px #0f172a29; }
+.platform-reason-tooltip:before { content: ""; background: #fff; border-top: 1px solid #dfe2e7; border-left: 1px solid #dfe2e7; width: 9px; height: 9px; position: absolute; bottom: -5px; right: 7px; transform: rotate(225deg); }
+.platform-reason[data-side="bottom"] .platform-reason-tooltip { top: calc(100% + 9px); bottom: auto; transform: translateY(-4px); }
+.platform-reason[data-side="bottom"] .platform-reason-tooltip:before { top: -5px; bottom: auto; transform: rotate(45deg); }
+.platform-reason-tooltip strong { color: var(--ink); font-size: 12px; font-weight: 650; }
+.platform-reason.open .platform-reason-tooltip, .platform-reason:not(.tapped):hover .platform-reason-tooltip { opacity: 1; visibility: visible; pointer-events: auto; transform: none; }
+
+.hero-ssr-summary {
+  margin: 12px 0 0;
+  max-width: 40rem;
+  color: #5a6d64;
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+</style>

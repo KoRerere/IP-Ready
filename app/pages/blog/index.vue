@@ -2,11 +2,12 @@
 import type { BlogFilter, BlogPostListItem } from '#shared/types/blog'
 
 const { t } = useI18n()
+const { localizePost, formatDate, formatReadTime } = useBlogLocale()
 
 const FILTERS: { key: BlogFilter; label: string }[] = [
-  { key: 'all', label: 'All Posts' },
-  { key: 'changelog', label: 'Changelog' },
-  { key: 'resources', label: 'Resources' },
+  { key: 'all', label: 'blog.filter.allPosts' },
+  { key: 'changelog', label: 'blog.filter.changelog' },
+  { key: 'resources', label: 'blog.filter.resources' },
 ]
 
 const filter = ref<BlogFilter>('all')
@@ -17,13 +18,14 @@ const { data: posts, status } = await useAsyncData(
   { default: () => [] },
 )
 
-const FEATURED = computed(() => posts.value[0])
-const featured = computed(() => FEATURED.value && filter.value === 'all' ? posts.value.slice(1) : posts.value)
+const localizedPosts = computed(() => posts.value.map(localizePost))
+const FEATURED = computed(() => localizedPosts.value[0])
+const featured = computed(() => FEATURED.value && filter.value === 'all' ? localizedPosts.value.slice(1) : localizedPosts.value)
 
 const filteredPosts = computed(() =>
   filter.value === 'all'
     ? featured.value
-    : posts.value.filter((post) => post.category === filter.value),
+    : localizedPosts.value.filter((post) => post.category === filter.value),
 )
 
 let revealObserver: IntersectionObserver | undefined
@@ -48,21 +50,10 @@ onMounted(() => {
 
 onBeforeUnmount(() => revealObserver?.disconnect())
 
-useHead({
+useSiteSeo({
+  path: '/blog',
   title: () => t('blog.metaTitle'),
-  meta: [
-    { name: 'description', content: () => t('blog.metaDescription') },
-    { property: 'og:title', content: () => t('blog.metaTitle') },
-    { property: 'og:description', content: () => t('blog.metaDescription') },
-  ],
-  link: [
-    { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
-    { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
-    {
-      rel: 'stylesheet',
-      href: 'https://fonts.googleapis.com/css2?family=Archivo:wght@500&family=Geist:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@700&display=swap',
-    },
-  ],
+  description: () => t('blog.metaDescription'),
 })
 </script>
 
@@ -78,13 +69,15 @@ useHead({
             <p class="blog-hero-sub">{{ t('blog.heroSub') }}</p>
           </div>
 
-          <a v-if="FEATURED" class="blog-featured-card" :href="`blog/${FEATURED.slug}`">
+          <a v-if="FEATURED" class="blog-featured-card" :href="`blog/${FEATURED.slug}`" :aria-label="FEATURED.title">
             <img
               v-if="FEATURED.coverImage"
               :src="FEATURED.coverImage"
               :alt="FEATURED.title"
               class="blog-featured-cover"
-              loading="lazy"
+              loading="eager"
+              fetchpriority="high"
+              width="930" height="624"
             />
             <StoryCover v-else :variant="FEATURED.cover" class="blog-featured-cover" />
           </a>
@@ -93,7 +86,7 @@ useHead({
 
       <section class="blog-stories" id="stories">
         <div class="blog-stories-layout">
-          <aside class="blog-filters" role="group" aria-label="Filter stories">
+          <aside class="blog-filters" role="group" :aria-label="t('blog.filter.label')">
             <button
               v-for="item in FILTERS"
               :key="item.key"
@@ -102,15 +95,15 @@ useHead({
               :class="{ active: filter === item.key }"
               @click="filter = item.key"
             >
-              {{ item.label }}
+              {{ t(item.label) }}
             </button>
           </aside>
 
-          <div v-if="status === 'pending'" class="admin-loading">Loading posts…</div>
+          <div v-if="status === 'pending'" class="admin-loading">{{ t('blog.loading') }}</div>
 
           <div v-else class="blog-grid">
             <article
-              v-for="post in filteredPosts"
+              v-for="(post, index) in filteredPosts"
               :key="post.slug"
               class="blog-card scroll-reveal-item"
             >
@@ -121,12 +114,14 @@ useHead({
                     :src="post.coverImage"
                     :alt="post.title"
                     class="blog-card-cover"
-                    loading="lazy"
+                    :loading="index < 2 ? 'eager' : 'lazy'"
+                    :fetchpriority="index < 2 ? 'high' : 'auto'"
+                    width="930" height="624"
                   />
                   <StoryCover v-else :variant="post.cover" class="blog-card-cover" />
                 </span>
                 <span class="blog-card-body">
-                  <span class="blog-card-meta">{{ post.date }} · {{ post.readTime }}</span>
+                  <span class="blog-card-meta">{{ formatDate(post.date) }} · {{ formatReadTime(post.readTime) }}</span>
                   <span class="blog-card-title">{{ post.title }}</span>
                 </span>
               </a>

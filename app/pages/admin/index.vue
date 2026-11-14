@@ -73,7 +73,7 @@ const stats = computed(() => {
     { label: '总文章', value: String(posts.value.length), icon: FileText, tone: 'zinc' },
     { label: '已发布', value: String(published), icon: Send, tone: 'green' },
     { label: '草稿/下架', value: String(drafts), icon: PencilLine, tone: 'amber' },
-    { label: '平均风险分', value: String(riskStats.value?.summary.avg ?? '—'), icon: Activity, tone: 'blue' },
+    { label: '平均风险分', value: riskStats.value ? Number(riskStats.value.summary.avg).toFixed(1) : '—', icon: Activity, tone: 'blue' },
   ]
 })
 
@@ -375,7 +375,7 @@ onMounted(() => void loadSession())
           <span class="admin-chip admin-chip-low"><b>{{ riskStats?.summary.low ?? 0 }}</b>低风险</span>
           <span class="admin-chip admin-chip-medium"><b>{{ riskStats?.summary.medium ?? 0 }}</b>中风险</span>
           <span class="admin-chip admin-chip-high"><b>{{ riskStats?.summary.high ?? 0 }}</b>高风险</span>
-          <span class="admin-chip admin-chip-avg"><b>{{ riskStats?.summary.avg ?? 0 }}</b>平均分</span>
+          <span class="admin-chip admin-chip-avg"><b>{{ Number(riskStats?.summary.avg ?? 0).toFixed(1) }}</b>平均分</span>
         </div>
 
         <div class="admin-risk-chart">
@@ -398,7 +398,7 @@ onMounted(() => void loadSession())
               r="4"
               :class="`risk-dot risk-dot-${dot.level}`"
             >
-              <title>{{ dot.ip }} — 风险分 {{ dot.score }}</title>
+              <title>{{ dot.ip }} — 风险分 {{ Number(dot.score ?? 0).toFixed(1) }}</title>
             </circle>
           </svg>
           <p v-if="!chartDots.length" class="admin-risk-empty">暂无扫描记录——访客运行 IP 检测后,图表会自动填充。</p>

@@ -3,10 +3,11 @@ import type { BlogPost } from '#shared/types/blog'
 
 const route = useRoute()
 const slug = computed(() => String(route.params.slug ?? ''))
+const requestFetch = useRequestFetch()
 
 const { data: post, status } = await useAsyncData(
   () => `admin-post-${slug.value}`,
-  () => $fetch<BlogPost>(`/api/admin/posts/${slug.value}`),
+  () => requestFetch<BlogPost>(`/api/admin/posts/${slug.value}`),
   { watch: [slug] },
 )
 

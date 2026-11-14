@@ -1,8 +1,16 @@
+import { isValidIp } from '#shared/utils/ip-validation'
 import { appendScan } from '../utils/scan-store'
-import { isPublicIp, isValidIp, lookupIpIntelligence, normalizeIp } from '../utils/ip-intelligence'
+import { isPublicIp, lookupIpIntelligence, normalizeIp } from '../utils/ip-intelligence'
+import { buildLocalStub, isLocalRequestEvent, markLocalStub } from '../utils/local-request'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig(event)
+  // 包 2（tor1114）：本地/局域网且无代理头的请求返回标注桩，不调供应商、不写扫描记录（与线上补丁同一判定）
+  if (isLocalRequestEvent(event)) {
+    markLocalStub(event)
+    const stubQuery = getQuery(event)
+    return buildLocalStub((typeof stubQuery.ip === 'string' ? normalizeIp(stubQuery.ip) : undefined) ?? '127.0.0.1')
+  }
   if (!config.iplocateApiKey) throw createError({ statusCode: 503, statusMessage: 'IP detection is not configured.' })
 
   // 显式传入 ?ip= 时查询指定 IP，否则检测访问者自身 IP

@@ -163,10 +163,14 @@ export async function getPost(slug: string): Promise<BlogPost | undefined> {
   return posts.find((p) => p.slug === slug)
 }
 
-export async function getRelated(slug: string, count = 3): Promise<BlogPostListItem[]> {
-  const posts = await readAll()
-  return posts
-    .filter((p) => p.slug !== slug && p.status === 'published')
+export async function getRelated(slug: string, count = 4): Promise<BlogPostListItem[]> {
+  const posts = (await readAll()).filter((p) => p.slug !== slug && p.status === 'published')
+  const evergreenSlugs = ['what-is-ip-risk-score', 'why-is-my-ip-blacklisted']
+  const evergreen = evergreenSlugs.flatMap((featuredSlug) => posts.filter((p) => p.slug === featuredSlug))
+  const latest = posts
+    .filter((p) => !evergreenSlugs.includes(p.slug))
+    .sort((a, b) => (Date.parse(b.date) || 0) - (Date.parse(a.date) || 0) || a.slug.localeCompare(b.slug))
+  return [...evergreen, ...latest]
     .slice(0, count)
     .map(({ body: _body, markdown: _markdown, ...listItem }) => listItem)
 }

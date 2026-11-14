@@ -79,7 +79,7 @@ const PLATFORM_MODELS: Record<string, PlatformModel> = {
     blocked: ['CU', 'IR', 'KP', 'SY'],
     sensitivity: { anonymizer: 0.9, datacenter: 0.9, abuse: 0.9 },
   },
-  'Ebay': {
+  'eBay': {
     weights: { region: 20, anonymizer: 30, datacenter: 30, abuse: 20 },
     blocked: ['CU', 'IR', 'KP', 'SY'],
     sensitivity: { anonymizer: 0.9, datacenter: 0.9, abuse: 0.9 },
@@ -107,7 +107,7 @@ const PLATFORM_MODELS: Record<string, PlatformModel> = {
     blocked: ['US', 'CA', 'NL', 'CN', 'RU', 'IR', 'KP', 'SY', 'CU'],
     sensitivity: { anonymizer: 1, datacenter: 0.7, abuse: 0.8 },
   },
-  'Tiktok Shop': {
+  'TikTok Shop': {
     weights: { region: 45, anonymizer: 25, datacenter: 20, abuse: 10 },
     onlyIn: ['US', 'MX', 'BR', 'GB', 'IE', 'DE', 'FR', 'IT', 'ES', 'PL', 'JP', 'KR', 'ID', 'MY', 'TH', 'VN', 'PH', 'SG', 'SA'],
     sensitivity: { anonymizer: 0.9, datacenter: 0.8, abuse: 0.8 },

@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { isValidIp } from '#shared/utils/ip-validation'
+import { EVALUATED_PLATFORMS } from '#shared/utils/platforms'
+import { analysisFor, formatRiskScore, isSuspectedExit, networkTypeLabel, riskLevelFor } from '#shared/utils/ip-display'
 import { computePlatformReadiness, type ReadinessContext } from '#shared/utils/platform-readiness'
 
 interface IpScanResult {
@@ -40,59 +43,22 @@ const scan = ref<IpScanResult | null>(null)
 const scanPending = ref(false)
 const scanError = ref('')
 const copied = ref(false)
-const copyToastMessage = ref(t('misc.copied'))
-const userAgent = ref('Detecting browser…')
+const copyToastMessage = ref('misc.copied')
+const { userAgent, browserInfo } = useBrowserInfo()
+const analysis = computed(() => scan.value ? analysisFor(scan.value, t) : null)
+const suspectedExit = computed(() => scan.value ? isSuspectedExit(scan.value) : false)
+const networkType = computed(() => networkTypeLabel(scan.value?.connection_type, t, scan.value?.hosting))
 const currentTime = ref(new Date())
 let toastTimer: ReturnType<typeof setTimeout> | undefined
 
-// 占位符打字机动画（与 Batch Check 页同款效果）：逐字打出示例文案，停顿后删除换下一条
-const PHRASE_KEYS = ['check.placeholder', 'check.phrase2', 'check.phrase3']
-const placeholderText = ref('')
-let phraseIndex = 0
-let charIndex = 0
-let deleting = false
-let typeTimer: ReturnType<typeof setTimeout> | undefined
-
-function tickPlaceholder() {
-  const full = t(PHRASE_KEYS[phraseIndex]!)
-  if (!deleting) {
-    charIndex++
-    placeholderText.value = full.slice(0, charIndex)
-    if (charIndex >= full.length) {
-      deleting = true
-      typeTimer = setTimeout(tickPlaceholder, 1800)
-    } else {
-      typeTimer = setTimeout(tickPlaceholder, 65)
-    }
-  } else {
-    charIndex--
-    placeholderText.value = full.slice(0, charIndex)
-    if (charIndex <= 0) {
-      deleting = false
-      phraseIndex = (phraseIndex + 1) % PHRASE_KEYS.length
-      typeTimer = setTimeout(tickPlaceholder, 420)
-    } else {
-      typeTimer = setTimeout(tickPlaceholder, 26)
-    }
-  }
-}
-
-function startPlaceholder() {
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    placeholderText.value = t(PHRASE_KEYS[0]!)
-    return
-  }
-  const full = t(PHRASE_KEYS[0]!)
-  placeholderText.value = full
-  charIndex = full.length
-  deleting = true
-  typeTimer = setTimeout(tickPlaceholder, 1800)
-}
+const placeholderText = useRotatingPlaceholder(['check.placeholder', 'check.phrase2', 'check.phrase3'])
+const checkingVisitor = ref(!route.query.ip)
+const errorKey = ref('')
+watch(locale, () => { if (errorKey.value) scanError.value = t(errorKey.value) })
 
 const riskScore = computed(() => scan.value?.risk_score ?? 0)
-const healthScore = computed(() => scan.value ? Math.max(0, 100 - riskScore.value) : 0)
-const riskLevel = computed(() => riskScore.value > 70 ? 'high' : riskScore.value >= 40 ? 'medium' : 'low')
-const riskLabel = computed(() => riskScore.value > 70 ? t('risk.high') : riskScore.value >= 40 ? t('risk.medium') : t('risk.low'))
+const riskLevel = computed(() => riskLevelFor(riskScore.value))
+const riskLabel = computed(() => riskLevel.value === 'high' ? t('risk.high') : riskLevel.value === 'medium' ? t('risk.medium') : t('risk.low'))
 const countryName = computed(() => {
   const code = scan.value?.country_code
   if (!code) return t('report.detectingLocation')
@@ -131,7 +97,7 @@ function quickReadFor(name: string) {
 // AI 分析标题前的表情：检测中不显示，状态好 👍，状态差 ⚠️
 const analysisEmoji = computed(() => {
   if (!scan.value) return ''
-  return healthScore.value >= 70 ? '👍' : '⚠️'
+  return riskScore.value <= 30 ? '👍' : '⚠️'
 })
 
 // 快捷示例：地理归属稳定的真实服务 IP（Apple / 百度 / 推特东京 / BBC）
@@ -165,29 +131,33 @@ function sampleCountry(code: string) {
   }
 }
 
-async function submitCheck() {
+async function runCheck(visitor: boolean) {
+  if (scanPending.value) return
   const value = ipInput.value.trim()
-  const looksValid = /^\d{1,3}(\.\d{1,3}){3}$/.test(value) || (value.includes(':') && /^[0-9a-f:]+$/i.test(value))
-  if (!looksValid) {
-    scanError.value = t('check.invalid')
-    scan.value = null
+  if (!visitor && !isValidIp(value)) {
+    errorKey.value = 'check.invalid'
+    scanError.value = t(errorKey.value)
     return
   }
+  checkingVisitor.value = visitor
   scanPending.value = true
   scanError.value = ''
+  errorKey.value = ''
   try {
-    scan.value = await $fetch<IpScanResult>('/api/ip-check', { query: { ip: value } })
-    router.replace({ query: { ip: scan.value.ip } })
+    scan.value = await $fetch<IpScanResult>('/api/ip-check', { query: visitor ? undefined : { ip: value }, timeout: 30_000, retry: 0 })
+    if (!visitor) await router.replace({ query: { ip: scan.value.ip } })
   } catch (error) {
-    const apiError = error as { data?: { statusMessage?: string }; message?: string }
-    scanError.value = apiError.data?.statusMessage || apiError.message || t('misc.scanFailed')
+    const status = (error as { statusCode?: number; status?: number }).statusCode ?? (error as { status?: number }).status
+    errorKey.value = status === 400 ? 'check.invalid' : 'misc.scanFailed'
+    scanError.value = t(errorKey.value)
     scan.value = null
   } finally {
     scanPending.value = false
   }
 }
+function submitCheck() { return runCheck(false) }
 
-async function copyValue(value: string, message = t('misc.copied')) {
+async function copyValue(value: string, message = 'misc.copied') {
   await navigator.clipboard.writeText(value)
   copyToastMessage.value = message
   copied.value = true
@@ -197,29 +167,17 @@ async function copyValue(value: string, message = t('misc.copied')) {
 
 function copyIp() {
   if (!scan.value?.ip) return
-  return copyValue(scan.value.ip, t('misc.ipCopied'))
+  return copyValue(scan.value.ip, 'misc.ipCopied')
 }
 
-useHead({
+useSiteSeo({
+  path: '/check',
   title: () => t('check.metaTitle'),
-  meta: [
-    { name: 'description', content: () => t('check.metaDescription') },
-    { property: 'og:title', content: () => t('check.metaTitle') },
-    { property: 'og:description', content: () => t('check.metaDescription') },
-  ],
-  link: [
-    { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
-    { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
-    {
-      rel: 'stylesheet',
-      href: 'https://fonts.googleapis.com/css2?family=Archivo:wght@500&family=Geist:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@700&display=swap',
-    },
-  ],
+  description: () => t('check.metaDescription'),
 })
 
 onBeforeUnmount(() => {
   if (toastTimer) clearTimeout(toastTimer)
-  if (typeTimer) clearTimeout(typeTimer)
 })
 
 function hasScanValue(value: unknown) {
@@ -235,11 +193,9 @@ function copyDeviceValue(event: MouseEvent) {
 
 // 支持 /check?ip=x.x.x.x 直接出结果
 onMounted(() => {
-  userAgent.value = navigator.userAgent
   const clockTimer = window.setInterval(() => { currentTime.value = new Date() }, 1000)
   onBeforeUnmount(() => window.clearInterval(clockTimer))
-  startPlaceholder()
-  if (typeof route.query.ip === 'string' && route.query.ip) void submitCheck()
+  void runCheck(!(typeof route.query.ip === 'string' && route.query.ip))
 })
 </script>
 
@@ -286,7 +242,7 @@ onMounted(() => {
                   <span class="check-example-ip">{{ sample.ip }}</span>
                 </button>
               </div>
-              <div class="chip-set" aria-hidden="true">
+              <div class="chip-set" aria-hidden="true" @mousedown.prevent>
                 <button v-for="sample in sampleIps" :key="`duplicate-${sample.ip}`" type="button" tabindex="-1" class="check-example-chip" @click="ipInput = sample.ip; submitCheck()">
                   <img class="check-example-flag" :src="`/assets/icons/flags/${sample.code}.svg`" alt="" />
                   <b>{{ sampleCountry(sample.code) }}</b>
@@ -305,7 +261,7 @@ onMounted(() => {
             <InteractiveGlobe tint="blue" />
           </div>
           <div class="ip-heading">
-            <p class="overline">{{ t('report.yourIp') }}</p>
+            <p class="overline">{{ t(checkingVisitor ? 'report.yourIp' : 'report.queriedIp') }}</p>
             <div class="ip-line">
               <strong>{{ scan?.ip || (scanPending ? t('report.detecting') : t('report.unavailable')) }}</strong>
               <button class="icon-button copy-ip" type="button" :title="t('report.copyIp')" :aria-label="t('report.copyIp')" :disabled="!scan?.ip" @click="copyIp">
@@ -314,13 +270,13 @@ onMounted(() => {
             </div>
             <div class="country-line">
               <img v-if="countryFlag" class="country-flag-icon" :src="countryFlag" alt="" />
-              <b>{{ scanError || `${countryName}${scan?.city ? ` / ${scan.city}` : ''}` }}</b>
+              <b>{{ `${countryName}${scan?.city ? ` / ${scan.city}` : ''}` }}</b>
             </div>
           </div>
 
           <div class="ip-facts">
             <div><b>{{ scan?.ISP || t('report.detecting') }}</b><span>{{ t('report.isp') }}</span></div>
-            <div><b>{{ scan?.connection_type || t('misc.unknown') }}</b><span>{{ t('report.networkType') }}</span></div>
+            <div><b>{{ networkType }}</b><span>{{ t('report.networkType') }}</span></div>
             <div><b>{{ scan?.timezone || t('misc.unknown') }}</b><span>{{ t('report.timezone') }}</span></div>
             <div><b>{{ coordinates }}</b><span>{{ t('report.location') }}</span></div>
           </div>
@@ -330,11 +286,11 @@ onMounted(() => {
               <span class="ai-logo"><img src="/assets/figma/imgLogo.svg" alt="" /></span>
               <b>{{ t('report.aiAnalysis') }}</b>
             </div>
-            <h2><span v-if="analysisEmoji" aria-hidden="true">{{ analysisEmoji }}</span> {{ scan?.analysis.title || t('report.analyzing') }}</h2>
-            <p>{{ scan?.analysis.summary || t('report.checkingSignals') }}</p>
-            <p><b>{{ t('report.mainConcern') }}</b> {{ scan?.analysis.concern || t('report.analysisPending') }}</p>
+            <h2><span v-if="analysisEmoji" aria-hidden="true">{{ analysisEmoji }}</span> {{ analysis?.title || t('report.analyzing') }}</h2>
+            <p>{{ analysis?.summary || t('report.checkingSignals') }}</p>
+            <p><b>{{ t('report.mainConcern') }}</b>{{ ' ' + (analysis?.concern || t('report.analysisPending')) }}</p>
             <div class="analysis-checks">
-              <span><CurrentIcon class="analysis-check-icon" src="/assets/figma/imgVector3.svg" />{{ scan?.connection_type || t('report.networkPending') }}</span>
+              <span><CurrentIcon class="analysis-check-icon" src="/assets/figma/imgVector3.svg" />{{ scan ? networkType : t('report.networkPending') }}</span>
               <span><CurrentIcon class="analysis-check-icon" src="/assets/figma/imgVector3.svg" />{{ scan?.city ? t('report.locationAvailable') : t('report.locationLimited') }}</span>
               <span><CurrentIcon class="analysis-check-icon" src="/assets/figma/imgVector3.svg" />{{ t('report.iplocateChecked') }}</span>
             </div>
@@ -343,16 +299,12 @@ onMounted(() => {
 
         <aside class="score-panel">
           <p class="score-label">{{ t('report.score') }}</p>
-          <div class="score-value"><strong>{{ scan ? healthScore : '--' }}</strong><span>/100</span><em :class="scan ? `risk-${riskLevel}` : ''">{{ scan ? riskLabel : t('report.scanning') }}</em></div>
+          <div class="score-value"><strong :class="scan ? `risk-number-${riskLevel}` : ''">{{ scan ? formatRiskScore(riskScore) : '--' }}</strong><span>/ 100</span><em :class="scan ? `risk-${riskLevel}` : ''">{{ scan ? riskLabel : t('report.scanning') }}</em></div>
           <div class="score-divider"></div>
           <p class="platform-label">{{ t('report.quickRead') }}</p>
-          <div class="quick-platforms">
-            <div><span><span class="quick-icon"><img class="simple-glyph" src="/assets/icons/platform/IP_ic_claude.svg" alt="" /></span>Claude</span><b>{{ quickReadFor('Claude') }}</b></div>
-            <div><span><span class="quick-icon"><img class="simple-glyph" src="/assets/icons/platform/IP_ic_chatgpt.svg" alt="" /></span>ChatGPT</span><b>{{ quickReadFor('ChatGPT') }}</b></div>
-            <div><span><span class="quick-icon"><img class="simple-glyph" src="/assets/icons/platform/IP_ic_gemini.svg" alt="" /></span>Gemini</span><b>{{ quickReadFor('Gemini') }}</b></div>
-            <div><span><span class="quick-icon"><img class="simple-glyph" src="/assets/icons/platform/IP_ic_Amazon.svg" alt="" /></span>Amazon</span><b>{{ quickReadFor('Amazon') }}</b></div>
-            <div><span><span class="quick-icon"><img class="simple-glyph" src="/assets/icons/platform/IP_ic_tiktok_shop.svg" alt="" /></span>Tiktok Shop</span><b>{{ quickReadFor('Tiktok Shop') }}</b></div>
-          </div>
+            <div class="quick-platforms">
+              <div v-for="platform in EVALUATED_PLATFORMS" :key="platform.name"><span><span class="quick-icon"><img class="simple-glyph" :src="platform.icon" alt="" /></span>{{ platform.name }}</span><b>{{ quickReadFor(platform.name) }}</b></div>
+            </div>
           <a class="platform-link" href="/#readiness">{{ t('report.otherPlatforms') }} <CurrentIcon class="platform-arrow-icon" src="/assets/figma/imgVector29.svg" /></a>
         </aside>
         </div>
@@ -360,13 +312,14 @@ onMounted(() => {
 
       <div v-if="scan" class="check-status-grid status-grid">
         <article><strong>{{ scan.proxy ? t('status.detected') : t('status.notDetected') }}</strong><span>{{ t('status.proxy') }}</span></article>
-        <article><strong>{{ scan.vpn || scan.tor ? t('status.detected') : t('status.notDetected') }}</strong><span>{{ t('status.vpnTor') }}</span></article>
-        <article><strong>{{ scan.recent_abuse ? t('status.detected') : t('status.notDetected') }}</strong><span>{{ t('status.recentAbuse') }}</span></article>
-        <article class="risk-card"><em :class="`risk-${riskLevel}`">{{ riskLabel }}</em><strong>{{ riskScore }} / 100</strong><span>{{ t('status.riskScore') }}</span></article>
+        <article :class="{ 'suspected-exit-card': suspectedExit }"><strong :class="{ 'suspected-exit-text': suspectedExit }">{{ suspectedExit ? t('status.suspectedExit') : scan.vpn || scan.tor ? t('status.detected') : t('status.notDetected') }}</strong><span>{{ t('status.vpnTor') }}</span><small v-if="suspectedExit">{{ t('status.suspectedExitHelp') }}</small></article>
+        <article><strong>{{ scan.recent_abuse ? t('status.detected') : t('status.notDetected') }}</strong><span>{{ t('status.recentAbuse') }}</span><small v-if="scan?.recent_abuse">{{ t('status.abuseListed') }}</small></article>
+        <article class="risk-card"><em :class="`risk-${riskLevel}`">{{ riskLabel }}</em><strong :class="`risk-number-${riskLevel}`">{{ formatRiskScore(riskScore) }} / 100</strong><span>{{ t('status.riskScore') }}</span><small>{{ t('status.riskHelp') }}</small></article>
       </div>
     </section>
 
-    <section class="logo-rail" aria-label="Supported services">
+    <section class="logo-rail" :aria-label="t('report.popularPlatforms')">
+      <p class="logo-rail-label">{{ t('report.popularPlatforms') }}</p>
       <div class="logo-track">
         <div class="logo-set">
           <img v-for="service in supportedServices" :key="service.name" :src="service.src" :alt="service.name" />
@@ -397,7 +350,7 @@ onMounted(() => {
               <div><dt>{{ t('info.coordinates') }}</dt><dd :class="{ copyable: coordinates !== t('misc.na') }" class="accent-value">{{ coordinates }}</dd></div>
               <div><dt>{{ t('info.isp') }}</dt><dd :class="{ copyable: hasScanValue(scan?.ISP) }">{{ scan?.ISP || t('misc.na') }}</dd></div>
               <div><dt>{{ t('info.organization') }}</dt><dd :class="{ copyable: hasScanValue(scan?.organization) }">{{ scan?.organization || t('misc.na') }}</dd></div>
-              <div><dt>{{ t('info.connection') }}</dt><dd :class="{ copyable: hasScanValue(scan?.connection_type) }">{{ scan?.connection_type || t('misc.na') }}</dd></div>
+              <div><dt>{{ t('info.connection') }}</dt><dd :class="{ copyable: hasScanValue(scan?.connection_type) }">{{ scan ? networkType : t('misc.na') }}</dd></div>
               <div><dt>{{ t('info.asn') }}</dt><dd :class="{ copyable: hasScanValue(scan?.ASN) }" class="accent-value">{{ scan?.ASN ? `AS${scan.ASN}` : t('misc.na') }}</dd></div>
             </dl>
           </article>
@@ -415,9 +368,9 @@ onMounted(() => {
             <h3><img class="device-card-icon" src="/assets/figma/icon-browser.png" alt="" />{{ t('info.browser') }}</h3>
             <dl>
               <div><dt>{{ t('info.userAgent') }}</dt><dd class="copyable">{{ userAgent }}</dd></div>
-              <div><dt>{{ t('info.detectedBrowser') }}</dt><dd :class="{ copyable: hasScanValue(scan?.browser) }">{{ scan?.browser || t('misc.na') }}</dd></div>
-              <div><dt>{{ t('info.os') }}</dt><dd :class="{ copyable: hasScanValue(scan?.operating_system) }">{{ scan?.operating_system || t('misc.na') }}</dd></div>
-              <div><dt>{{ t('info.device') }}</dt><dd :class="{ copyable: hasScanValue(scan?.device_brand) || hasScanValue(scan?.device_model) }">{{ [scan?.device_brand, scan?.device_model].filter(Boolean).join(' ') || t('misc.na') }}</dd></div>
+              <div><dt>{{ t('info.detectedBrowser') }}</dt><dd :class="{ copyable: hasScanValue(browserInfo.browser) }">{{ browserInfo.browser || t('misc.na') }}</dd></div>
+              <div><dt>{{ t('info.os') }}</dt><dd :class="{ copyable: hasScanValue(browserInfo.os) }">{{ browserInfo.os || t('misc.na') }}</dd></div>
+              <div><dt>{{ t('info.device') }}</dt><dd :class="{ copyable: hasScanValue(browserInfo.device) }">{{ browserInfo.device ? t(`device.${browserInfo.device}`) : t('misc.na') }}</dd></div>
             </dl>
           </article>
         </div>
@@ -427,7 +380,7 @@ onMounted(() => {
 
   <AppFooter />
 
-  <div class="copy-toast" :class="{ show: copied }" role="status" aria-live="polite">{{ copyToastMessage }}</div>
+  <div class="copy-toast" :class="{ show: copied }" role="status" aria-live="polite">{{ t(copyToastMessage) }}</div>
 </template>
 
 <style scoped>

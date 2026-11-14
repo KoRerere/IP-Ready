@@ -1,10 +1,11 @@
 import tailwindcss from '@tailwindcss/vite'
+import { installDevLocalVerdict } from './server/lib/local-request-core'
 
 export default defineNuxtConfig({
   compatibilityDate: '2026-08-01',
   devtools: { enabled: false },
   devServer: { host: '0.0.0.0' },
-  css: ['~/assets/css/tailwind.css', '~/assets/css/main.css'],
+  css: ['~/assets/css/tailwind.css', '~/assets/css/main.css', '~/assets/css/mobile-padding.css'],
   components: [
     { path: '~/components', ignore: ['**/index.ts'] },
   ],
@@ -28,5 +29,11 @@ export default defineNuxtConfig({
   },
   typescript: {
     typeCheck: false,
+  },
+  hooks: {
+    // 包 3：dev 监听器上先按客户端原始请求头判定本地桩（Nitro dev 代理会补 x-forwarded-for），详见 server/lib/local-request-core.ts
+    listen(server) {
+      installDevLocalVerdict(server)
+    },
   },
 })

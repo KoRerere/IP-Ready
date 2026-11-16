@@ -20,11 +20,18 @@ let pointerStart: number | null = null
 let pointerOffset = 0
 let dragRotation = 0
 let visible = true
+// tbt1116：画布离开视口时跳过绘制（回到视口后从原角度继续，肉眼无差别）
+let inView = true
+let intersectionObserver: IntersectionObserver | undefined
+let reducedMotion: MediaQueryList | undefined
+// tbt1116：后备分辨率 = CSS 宽 × min(4, 2×屏幕 DPR)。DPR≥2 与原先 4 倍完全一致（逐像素相同）；
+// DPR<2 仍保留 2 倍超采样，只去掉多余像素——无 GPU 的软件 WebGL（PSI/Lighthouse）下这正是逐帧长任务的来源。
+let backingScale = 4
 
 const globeConfig: COBEOptions = {
   width: 800,
   height: 800,
-  devicePixelRatio: 2,
+  devicePixelRatio: 1,
   phi: 0,
   theta: 0.3,
   dark: 0,
@@ -41,15 +48,18 @@ const globeConfig: COBEOptions = {
 }
 
 function render() {
-  if (pointerStart === null && visible && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) phi += 0.0035
-  globe?.update({ phi: phi + dragRotation, width: width * 2, height: width * 2 })
+  if (inView) {
+    if (pointerStart === null && visible && !reducedMotion?.matches) phi += 0.0035
+    globe?.update({ phi: phi + dragRotation, width: width * backingScale, height: width * backingScale })
+  }
   animationFrame = requestAnimationFrame(render)
 }
 
 function updateSize() {
   if (!canvas.value) return
   width = canvas.value.offsetWidth
-  globe?.update({ width: width * 2, height: width * 2 })
+  backingScale = Math.min(4, 2 * Math.max(1, window.devicePixelRatio || 1))
+  globe?.update({ width: width * backingScale, height: width * backingScale })
 }
 
 function pointerDown(event: PointerEvent) {
@@ -74,10 +84,13 @@ function updateVisibility() {
 onMounted(() => {
   const element = canvas.value
   if (!element) return
+  reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
   updateSize()
-  globe = createGlobe(element, { ...globeConfig, width: width * 2, height: width * 2 })
+  globe = createGlobe(element, { ...globeConfig, width: width * backingScale, height: width * backingScale })
   resizeObserver = new ResizeObserver(updateSize)
   resizeObserver.observe(element)
+  intersectionObserver = new IntersectionObserver(([entry]) => { inView = entry?.isIntersecting ?? true })
+  intersectionObserver.observe(element)
   document.addEventListener('visibilitychange', updateVisibility)
   requestAnimationFrame(() => element.classList.add('ready'))
   animationFrame = requestAnimationFrame(render)
@@ -86,6 +99,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   cancelAnimationFrame(animationFrame)
   resizeObserver?.disconnect()
+  intersectionObserver?.disconnect()
   document.removeEventListener('visibilitychange', updateVisibility)
   globe?.destroy()
 })
